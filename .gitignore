@@ -1,0 +1,15 @@
+.audit-*
+.build/
+data/source/
+releases/
+*.zip
+*.rar
+*.shp
+*.shx
+*.dbf
+*.sbn
+*.sbx
+*.qmd
+*.qpj
+Thumbs.db
+.DS_Store

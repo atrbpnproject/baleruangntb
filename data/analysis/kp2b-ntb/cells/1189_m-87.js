@@ -1,0 +1,1 @@
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["kp2b|1189:-87"]=["1185:-87","1177:-89","1189:-87","1186:-88","1189:-88"];
