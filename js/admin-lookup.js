@@ -20,6 +20,17 @@
     });
     return pending[id];
   }
+  window.ntbAdminFeaturesInBounds = async function (bbox) {
+    var index = window.__NTB_ADMIN_INDEX__;
+    if (!index) throw new Error('Indeks administrasi lokal tidak tersedia');
+    var candidates = index.filter(function (entry) { var b = entry.bbox; return b[0] <= bbox[2] && b[2] >= bbox[0] && b[1] <= bbox[3] && b[3] >= bbox[1]; });
+    var features = [];
+    for (var start = 0; start < candidates.length; start += 6) {
+      var batch = await Promise.all(candidates.slice(start, start + 6).map(function (entry) { return load(entry.id); }));
+      features = features.concat(batch.filter(Boolean));
+    }
+    return features;
+  };
   window.ntbAdminLookup = async function (lng, lat, contains) {
     var index = window.__NTB_ADMIN_INDEX__;
     if (!index) throw new Error('Indeks administrasi lokal tidak tersedia');
