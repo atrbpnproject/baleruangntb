@@ -592,7 +592,7 @@
     var analysisScopeBounds={4:[116.44771,-8.51328,116.75484,-8.21558],5:[116.55467,-8.63841,116.70825,-8.43463]};
     function bboxOverlaps(a,b){return a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1]}
     analyzePoint=function(latlng,reportGeometry){
-      var token=++analysisToken,lng=latlng.lng,lat=latlng.lat,results=document.getElementById('coordinateResults'),state=document.getElementById('analysisState'),polygonParts=uploadedPolygonParts(reportGeometry),polygonMode=polygonParts.length>0,checked=new Array(defs.length),completed=0,uploadMatch=reportGeometry&&reportGeometry.type==='FeatureCollection'&&(reportGeometry.features||[]).length===1?reportGeometry.features[0]:null,requestBbox=polygonMode?polygonParts.reduce(function(box,part){return[Math.min(box[0],part.bbox[0]),Math.min(box[1],part.bbox[1]),Math.max(box[2],part.bbox[2]),Math.max(box[3],part.bbox[3])] },[Infinity,Infinity,-Infinity,-Infinity]):[lng,lat,lng,lat];
+      var token=++analysisToken,lng=latlng.lng,lat=latlng.lat,results=document.getElementById('coordinateResults'),state=document.getElementById('analysisState'),polygonParts=uploadedPolygonParts(reportGeometry),polygonMode=polygonParts.length>0,checked=new Array(defs.length),completed=0,relevantTotal=1,uploadMatch=reportGeometry&&reportGeometry.type==='FeatureCollection'&&(reportGeometry.features||[]).length===1?reportGeometry.features[0]:null,requestBbox=polygonMode?polygonParts.reduce(function(box,part){return[Math.min(box[0],part.bbox[0]),Math.min(box[1],part.bbox[1]),Math.max(box[2],part.bbox[2]),Math.max(box[3],part.bbox[3])] },[Infinity,Infinity,-Infinity,-Infinity]):[lng,lat,lng,lat];
       clearAnalysisResultLayers();
       adminLookupPending=true;
       lastAnalysisAdministration=[];
@@ -624,7 +624,7 @@
       function showItem(index,item){
         if(token!==analysisToken)return;checked[index]=item;completed++;
         var card=results.querySelector('[data-analysis-index="'+index+'"]');if(!card&&!item.skipped){card=document.createElement('section');card.dataset.analysisIndex=index;results.appendChild(card)}if(card){var inside=isIn(item);card.className='result-card progress-layer-card '+(inside?'':'out');card.dataset.match=inside?'1':'0';card.innerHTML=cardHtml(item)}
-        state.innerHTML='<span class="progressive-loading">'+(completed<defs.length?'<i class="fas fa-circle-notch fa-spin"></i> ':'')+'<strong>'+completed+' dari '+defs.length+' layer</strong> selesai diperiksa.</span>';
+        state.innerHTML='<span class="progressive-loading">'+(completed<relevantTotal?'<i class="fas fa-circle-notch fa-spin"></i> ':'')+'<strong>'+completed+' dari '+relevantTotal+' layer relevan</strong> selesai diperiksa.</span>';
       }
       var adminFeatures=[];
       results.onchange=function(event){var input=event.target.closest('[data-analysis-layer-toggle]');if(!input)return;var index=Number(input.dataset.analysisLayerToggle);toggleAnalysisResultLayer(index,checked[index],input.checked,polygonMode);toast(input.checked?'Layer hasil ditampilkan pada peta.':'Layer hasil disembunyikan.')};
@@ -647,7 +647,7 @@
       // Tahap pertama sengaja tunggal: identitas administrasi adalah konteks untuk seluruh pemeriksaan berikutnya.
       activeAdminLookupPromise=queryBigAdministration(lng,lat);activeAdminLookupPromise.catch(function(error){if(token===analysisToken){adminLookupPending=false;if(displayRefreshDeferred){displayRefreshDeferred=false;refreshVisibleLayers()}}throw error}).then(function(hits){
         if(token!==analysisToken)return;
-        adminFeatures=hits;showItem(0,{def:defs[0],hits:hits,polygonTotal:0,intersections:[],categories:{},error:false});
+        adminFeatures=hits;analysisDefs=analysisDefs.filter(function(def){if(def.index===0)return true;var scopeDecision=analysisScopeCheck(def,adminFeatures);if(!scopeDecision.allowed)return false;if(def.analysisKind==='rdtr'&&!rdtrAppliesToAdministration(def,adminFeatures))return false;var scope=analysisScopeBounds[def.index];return !scope||bboxOverlaps(requestBbox,scope)});relevantTotal=analysisDefs.length;showItem(0,{def:defs[0],hits:hits,polygonTotal:0,intersections:[],categories:{},error:false});
         lastAnalysisAdministration=hits;
         // Siapkan penulis SHP saat pengguna membaca hasil analisis agar klik Export tidak menunggu unduhan modul.
         loadConverterScript().catch(function(){});
