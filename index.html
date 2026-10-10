@@ -1091,6 +1091,16 @@
   body .panel{border-radius:var(--r-lg);box-shadow:var(--float)}
   body .result-card,body .analysis-summary,body .analysis-alert,body .analysis-out-group,body .ux-active,body .ux-legend,body .notice{border-radius:var(--r-md)}
   body .result-card{box-shadow:none}
+  /* Permukaan kaca hanya untuk panel peta; isi tetap cukup pekat agar teks terbaca. */
+  body #layerPanel{background:rgba(247,251,255,.82);border-color:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(18px) saturate(135%);backdrop-filter:blur(18px) saturate(135%)}
+  body #layerPanel .panel-head{background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(229,242,252,.76));border-bottom-color:rgba(151,180,204,.42)}
+  body #layerPanel .layer:hover,body #layerPanel .layer-group[open]>summary{background:rgba(230,244,254,.76)}
+  body #coordinateModal .modal{background:rgba(249,252,255,.86);border-color:rgba(255,255,255,.74);-webkit-backdrop-filter:blur(18px) saturate(135%);backdrop-filter:blur(18px) saturate(135%)}
+  body #coordinateModal .result-card{background:rgba(250,253,255,.88);border-color:rgba(198,218,232,.8)}
+  body #coordinateModal .result-card.upload-result{background:rgba(241,249,255,.91)}
+  body #coordinateModal .result-card.out{background:rgba(247,250,253,.88)}
+  @media(max-width:760px){body #layerPanel,body #coordinateModal .modal{-webkit-backdrop-filter:blur(12px) saturate(120%);backdrop-filter:blur(12px) saturate(120%)}}
+  @media(prefers-reduced-transparency:reduce){body #layerPanel,body #coordinateModal .modal{background:#f9fcff;-webkit-backdrop-filter:none;backdrop-filter:none}}
   body .leaflet-bar,body .lontar-toolbox,body .lontar-toolbox-menu{border-radius:var(--r-md)!important;box-shadow:var(--float)!important}
   body .leaflet-bar a:first-child,body .leaflet-bar button:first-child{border-top-left-radius:var(--r-md);border-top-right-radius:var(--r-md)}
   body .leaflet-bar a:last-child,body .leaflet-bar button:last-child{border-bottom-left-radius:var(--r-md);border-bottom-right-radius:var(--r-md)}
