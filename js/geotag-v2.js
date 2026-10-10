@@ -1,7 +1,9 @@
 (function () {
   'use strict';
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function tm3(lon,lat){var cm=lon<117?115.5:118.5;return{x:Math.round(200000+(lon-cm)*111320*Math.cos(lat*Math.PI/180)),y:Math.round((lat+10)*110540)}}
+  // Proyeksi TM-3 DGN95 penuh (Transverse Mercator, k0 0,9999, FE 200.000, FN 1.500.000).
+  // Zona mengikuti aturan ekspor SHP: kabupaten Pulau Sumbawa = 50.2, selain itu 50.1 (atau bujur >= 117).
+  function tm3(lon,lat,regency){var name=String(regency||'').trim().toLowerCase().replace(/^(kabupaten|kab\.)\s*/,''),east=['sumbawa barat','sumbawa','dompu','bima','kota bima'].indexOf(name)>=0||lon>=117,zone=east?'50.2':'50.1',cm=east?118.5:115.5,a=6378137,f=1/298.257223563,e2=f*(2-f),ep2=e2/(1-e2),k0=.9999,phi=lat*Math.PI/180,lam=(lon-cm)*Math.PI/180,sin=Math.sin(phi),cos=Math.cos(phi),tan=Math.tan(phi),n=a/Math.sqrt(1-e2*sin*sin),t=tan*tan,c=ep2*cos*cos,A=cos*lam,e4=e2*e2,e6=e4*e2,m=a*((1-e2/4-3*e4/64-5*e6/256)*phi-(3*e2/8+3*e4/32+45*e6/1024)*Math.sin(2*phi)+(15*e4/256+45*e6/1024)*Math.sin(4*phi)-(35*e6/3072)*Math.sin(6*phi));return{zone:zone,x:Math.round(200000+k0*n*(A+(1-t+c)*Math.pow(A,3)/6+(5-18*t+t*t+72*c-58*ep2)*Math.pow(A,5)/120)),y:Math.round(1500000+k0*(m+n*tan*(A*A/2+(5-t+9*c+4*c*c)*Math.pow(A,4)/24+(61-58*t+t*t+600*c-330*ep2)*Math.pow(A,6)/720)))}}
   function inRing(pt,ring){var x=pt[0],y=pt[1],hit=false;for(var i=0,j=ring.length-1;i<ring.length;j=i++){var a=ring[i],b=ring[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])hit=!hit}return hit}
   function geometryContains(geometry,lon,lat){var polygons=geometry&&geometry.type==='Polygon'?[geometry.coordinates]:geometry&&geometry.type==='MultiPolygon'?geometry.coordinates:[];for(var p=0;p<polygons.length;p++){var rings=polygons[p]||[];if(!rings.length||!inRing([lon,lat],rings[0]))continue;var inHole=false;for(var h=1;h<rings.length;h++)if(inRing([lon,lat],rings[h])){inHole=true;break}if(!inHole)return true}return false}
   function adminRecord(feature){var a=feature&&feature.properties||{};return{village:a.WADMKD||a.DESA||a.NAMOBJ||'-',district:a.WADMKC||a.KECAMATAN||'-',regency:a.WADMKK||a.KAB_KOTA||'-',province:a.WADMPR||'Nusa Tenggara Barat',address:'',source:'Batas Administrasi Desa/Kelurahan NTB (SHP terbaru)'}}
@@ -22,7 +24,7 @@
     },{enableHighAccuracy:true,timeout:20000,maximumAge:15000});
   }
   function locationErrorText(error){
-    if(!window.isSecureContext)return 'GPS browser hanya dapat digunakan melalui HTTPS. Buka Bale Ruang NTB dari https://atrbpnproject.github.io/geopatuh/, bukan alamat HTTP atau IP lokal.';
+    if(!window.isSecureContext)return 'GPS browser hanya dapat digunakan melalui HTTPS. Buka Bale Ruang NTB melalui alamat https:// resminya, bukan alamat HTTP atau IP lokal.';
     if(error&&error.code===1)return 'Akses lokasi ditolak oleh browser. Buka pengaturan situs Bale Ruang NTB, pilih Lokasi: Izinkan, lalu muat ulang halaman.';
     if(error&&error.code===2)return 'Sinyal lokasi perangkat belum tersedia. Aktifkan GPS/Location perangkat dan coba di area yang lebih terbuka.';
     if(error&&error.code===3)return 'Pembacaan lokasi terlalu lama. Pastikan GPS perangkat aktif lalu coba kembali.';
@@ -32,9 +34,9 @@
     if(!w){alert('Izinkan pop-up untuk membuka laporan PDF.');return}
     var photo=canvas.toDataURL('image/jpeg',.93);
     var portrait=canvas.height>canvas.width;
-    var m=tm3(lon,lat);
+    var m=tm3(lon,lat,admin&&admin.regency);
     var maps='https://www.google.com/maps?q='+lat+','+lon;
-    var appUrl='https://atrbpnproject.github.io/geopatuh/';
+    var appUrl=location.origin+location.pathname.replace(/[^\/]*$/,'');
     var fileName='BaleRuangNTB_Geotagging_X_'+m.x+'_Y_'+m.y;
     var qr='https://quickchart.io/qr?size=220&margin=1&text='+encodeURIComponent(maps);
     var leafletCss=new URL('css/leaflet.css',location.href).href;
@@ -48,7 +50,7 @@
       '<header class="header"><div class="brand"><img src="'+logo+'"><div><b>Bale Ruang NTB</b><span>Satu Tempat, Seluruh Informasi Ruang</span></div></div><div class="doc-title"><b>Dokumentasi Geotagging</b><span>Foto kondisi berbasis koordinat</span></div></header>'+
       '<section class="photo-main '+(portrait?'portrait':'landscape')+'"><img src="'+photo+'" alt="Foto hasil jepretan"></section>'+
       '<section class="bottom"><article class="card"><h3>Peta Lokasi</h3><div class="map-wrap"><div id="map"></div><div class="north">U</div></div></article>'+
-      '<article class="card"><h3>Data Geotagging</h3><div class="rows"><b>Desa/Kelurahan</b><span>'+esc(admin.village)+'</span><b>Kecamatan</b><span>'+esc(admin.district)+'</span><b>Kabupaten</b><span>'+esc(admin.regency)+'</span><b>Provinsi</b><span>'+esc(admin.province)+'</span><b>Latitude</b><span>'+lat.toFixed(7)+'</span><b>Longitude</b><span>'+lon.toFixed(7)+'</span><b>X TM3</b><span>'+m.x.toLocaleString('id-ID')+'</span><b>Y TM3</b><span>'+m.y.toLocaleString('id-ID')+'</span><b>Tanggal</b><span>'+esc(date)+'</span><b>Waktu</b><span>'+esc(time)+'</span>'+(admin.address?'<b>Alamat Internet</b><span>'+esc(admin.address)+'</span>':'')+'</div><div class="source">Sumber: '+esc(admin.source)+'</div></article>'+
+      '<article class="card"><h3>Data Geotagging</h3><div class="rows"><b>Desa/Kelurahan</b><span>'+esc(admin.village)+'</span><b>Kecamatan</b><span>'+esc(admin.district)+'</span><b>Kabupaten</b><span>'+esc(admin.regency)+'</span><b>Provinsi</b><span>'+esc(admin.province)+'</span><b>Latitude</b><span>'+lat.toFixed(7)+'</span><b>Longitude</b><span>'+lon.toFixed(7)+'</span><b>X TM-3 '+m.zone+'</b><span>'+m.x.toLocaleString('id-ID')+'</span><b>Y TM-3 '+m.zone+'</b><span>'+m.y.toLocaleString('id-ID')+'</span><b>Tanggal</b><span>'+esc(date)+'</span><b>Waktu</b><span>'+esc(time)+'</span>'+(admin.address?'<b>Alamat Internet</b><span>'+esc(admin.address)+'</span>':'')+'</div><div class="source">Sumber: '+esc(admin.source)+'</div></article>'+
       '<article class="card qr-card"><h3>Lokasi Digital</h3><img id="locationQr" src="'+qr+'" alt="QR lokasi"><strong>Scan QR Code</strong><p>Arahkan kamera untuk membuka posisi foto.</p><a class="map-link" href="'+maps+'" target="_blank">Buka lokasi di Map</a></article></section>'+
       '<footer class="footer">Dibuat menggunakan Bale Ruang NTB - <a href="'+appUrl+'" target="_blank">'+esc(appUrl)+'</a></footer><script src="'+leafletJs+'"><\/script><script>var r='+payload+';document.title=r.fileName;window.addEventListener("load",function(){document.title=r.fileName;var map=L.map("map",{zoomControl:false,attributionControl:false}),tiles=L.tileLayer("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",{maxZoom:20,maxNativeZoom:20}).addTo(map);map.setView([r.lat,r.lon],18);L.marker([r.lat,r.lon]).addTo(map);L.control.scale({imperial:false,position:"bottomright"}).addTo(map);var done=false;function ready(){if(done)return;done=true;setTimeout(function(){document.title=r.fileName;try{parent.document.title=r.fileName}catch(e){}window.focus();window.print()},900)}tiles.on("load",ready);setTimeout(ready,3500)});<\/script></body></html>';
     w.document.open();

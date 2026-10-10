@@ -8,6 +8,8 @@
     return Number(text);
   }
   function validPair(x,y){return(Number.isFinite(x)&&Number.isFinite(y)&&((x>=100000&&x<=900000&&y>=8000000&&y<=10000000)||(x>=95&&x<=145&&y>=-15&&y<=5)))}
+  // Koordinat derajat-menit-detik, mis. 8°39'00" LS 116°31'48" BT. Tanpa penanda belahan, lintang dianggap selatan (NTB).
+  function dmsPair(line){var re=/([-+]?\d{1,3})\s*[°º]\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:['′’]\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*(?:["″”]|'')?)?)?\s*(LS|LU|BT|BB|S|N|E|W)?(?![A-Z])/gi,match,lat=null,lon=null;while((match=re.exec(String(line||'')))){var deg=Math.abs(Number(match[1])),min=numberValue(match[2]||0),sec=numberValue(match[3]||0),hemi=String(match[4]||'').toUpperCase(),value=deg+min/60+sec/3600,negative=/^-/.test(match[1]);if(!isFinite(value))continue;var isLon=hemi==='BT'||hemi==='BB'||hemi==='E'||hemi==='W'||(!hemi&&deg>=95);if(isLon){lon=(hemi==='BB'||hemi==='W'||negative)?-value:value}else{lat=(hemi==='LU'||hemi==='N')&&!negative?value:-value}}return lat!==null&&lon!==null&&validPair(lon,lat)?[lon,lat]:null}
   function parseLines(lines){
     lines=(lines||[]).map(function(line){return String(line||'').replace(/\s+/g,' ').trim()}).filter(Boolean);
     var normalized=lines.map(function(line){return line.toUpperCase()}),approved=-1;
@@ -19,7 +21,10 @@
       var upper=normalized[n];
       if(rows.length&&(/^(KETENTUAN|CATATAN|LAMPIRAN|C\.|D\.)\b/.test(upper)||/KOORDINAT\s+(YANG\s+)?DIMOHON/.test(upper)))break;
       var tokens=lines[n].match(/[-+]?\d[\d.,]*/g)||[],values=tokens.map(numberValue).filter(Number.isFinite),pair=null,no=null;
-      for(var j=0;j<values.length-1;j++)if(validPair(values[j],values[j+1])){pair=[values[j],values[j+1]];no=j>0?values[j-1]:rows.length+1;break}
+      var dms=dmsPair(lines[n]);if(dms){pair=dms;no=values.length&&values[0]>=1&&values[0]<1000&&Math.floor(values[0])===values[0]?values[0]:rows.length+1}
+      // Urutan Bujur–Lintang / X–Y, atau Lintang–Bujur / Y–X yang ditukar otomatis.
+      if(!pair)for(var j=0;j<values.length-1;j++)if(validPair(values[j],values[j+1])){pair=[values[j],values[j+1]];no=j>0?values[j-1]:rows.length+1;break}
+      if(!pair)for(var r=0;r<values.length-1;r++)if(validPair(values[r+1],values[r])){pair=[values[r+1],values[r]];no=r>0?values[r-1]:rows.length+1;break}
       if(pair)rows.push({no:no,x:pair[0],y:pair[1],source:lines[n]});
     }
     var unique=[],seen=Object.create(null);rows.forEach(function(row){var key=row.x.toFixed(4)+'|'+row.y.toFixed(4);if(!seen[key]){seen[key]=true;unique.push(row)}});
