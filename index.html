@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="id">
 <head>
+<script>document.documentElement.dataset.theme='light';</script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
   <meta name="theme-color" content="#071b36">
@@ -151,7 +152,7 @@
 
   <script src="js/leaflet.js"></script>
   <script src="js/L.Control.Locate.min.js"></script>
-  <script src="js/leaflet-measure.js?v=20260924-4"></script>
+  <script src="js/leaflet-measure.js?v=20261010-ukur"></script>
   <script src="js/shp.min.js"></script>
   <script src="js/martinez.umd.js"></script>
   <script src="js/kkpr-parser.js?v=20261010-fix"></script>
@@ -945,6 +946,26 @@
       if(window.MutationObserver)new MutationObserver(function(records){for(var i=0;i<records.length;i++)if(records[i].addedNodes.length){update();break}}).observe(list,{childList:true});
       setTimeout(update,0);
     })();
+    // Menu Alat dipindah ke header (desktop). Item & fungsinya tetap sama; di HP tetap lewat tombol Alat di menu bawah.
+    (function uxHeaderTools(){
+      var actions=document.querySelector('.header .head-actions'),menu=document.querySelector('.lontar-toolbox-menu');if(!actions||!menu)return;
+      var wrap=document.createElement('div');wrap.className='ux-head-tools';
+      wrap.innerHTML='<button type="button" class="btn" id="headerToolsButton" aria-haspopup="true" aria-expanded="false"><i class="fas fa-wrench" aria-hidden="true"></i>Alat</button>';
+      var upload=actions.querySelector('[data-open="upload"]');actions.insertBefore(wrap,upload||actions.firstChild);
+      wrap.appendChild(menu);menu.setAttribute('role','menu');
+      var button=wrap.querySelector('#headerToolsButton');
+      function setOpen(on){wrap.classList.toggle('open',on);button.setAttribute('aria-expanded',String(on));if(!on)menu.classList.remove('open')}
+      button.addEventListener('click',function(event){event.stopPropagation();setOpen(!wrap.classList.contains('open'))});
+      menu.addEventListener('click',function(event){if(event.target.closest('.lontar-toolbox-item'))setTimeout(function(){setOpen(false)},0)});
+      document.addEventListener('pointerdown',function(event){if(wrap.classList.contains('open')&&!wrap.contains(event.target))setOpen(false)},true);
+      // Buka saat kursor diarahkan (perangkat dengan mouse); tutup sejenak setelah kursor meninggalkan tombol dan menu.
+      var hoverTimer=null,canHover=window.matchMedia&&window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      if(canHover){wrap.addEventListener('mouseenter',function(){clearTimeout(hoverTimer);setOpen(true)});wrap.addEventListener('mouseleave',function(){clearTimeout(hoverTimer);hoverTimer=setTimeout(function(){setOpen(false)},220)})}
+      button.addEventListener('click',function(event){if(canHover&&wrap.classList.contains('open')){event.stopImmediatePropagation()}},true);
+      document.addEventListener('keydown',function(event){if(event.key==='Escape')setOpen(false)});
+    })();
+    // toolbox-close-on-pick
+    document.addEventListener('click',function(event){if(!event.target.closest('.lontar-toolbox-item'))return;setTimeout(function(){var menu=document.querySelector('.lontar-toolbox-menu'),button=document.querySelector('.lontar-toolbox-button');if(menu)menu.classList.remove('open');if(button)button.classList.remove('active');var head=document.querySelector('.ux-head-tools');if(head){head.classList.remove('open');var hb=head.querySelector('#headerToolsButton');if(hb)hb.setAttribute('aria-expanded','false')}},0)},true);
     window.GeoPATUHAnalyzeCoordinate=function(lat,lon){analyzePoint(L.latLng(Number(lat),Number(lon)))};
     updateStats();setTimeout(function(){map.invalidateSize()},100);
   })();
@@ -1161,7 +1182,8 @@
   /* Kuning logo sebagai warna sorotan (fokus keyboard, jumlah layer aktif) */
   body :focus-visible{outline-color:var(--ntb-yellow)!important}
   body .ux-legend-count{background:var(--ntb-yellow)!important;color:var(--navy)!important}
-  body .regional-island-title{margin-top:18px}
+  body .regional-island-title{display:flex;align-items:center;gap:8px;margin-top:18px}
+  body .regional-island-title:before{content:"\f3c5";flex:0 0 auto;font-family:"Font Awesome 5 Free";font-weight:900;font-size:14px;line-height:1;color:#e0a800}
 
   /* [1] Panel layer lebih ringan: kabupaten/kota sebagai daftar ringkas, bukan kartu berat */
   body .layer-group{margin:0;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent}
@@ -1178,6 +1200,221 @@
   body .layer-group-body .layer-legal{font-size:11px}
   /* "Belum dimuat" hanya gangguan: keterangan status muncul setelah layer dinyalakan */
   body #themeList .layer:not(:has(input:checked)) .layer-meta{display:none}
+</style>
+<style id="ux-macos">
+/* ===== Bale Ruang NTB — tema kaca ala macOS (terang / gelap) ===== */
+:root,html[data-theme="light"]{
+  --m-font:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI",-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  --m-glass:rgba(250,250,252,.9);--m-glass-strong:rgba(252,252,253,.97);--m-glass-thin:#fff;
+  --m-edge:rgba(255,255,255,.6);--m-hair:rgba(0,0,0,.09);--m-sep:rgba(60,60,67,.14);
+  --m-text:#1d1d1f;--m-text-2:#5e5e66;--m-text-3:#8a8a92;
+  --m-fill:rgba(118,118,128,.12);--m-fill-2:rgba(118,118,128,.2);--m-hover:rgba(0,0,0,.045);
+  --m-accent:#007aff;--m-accent-text:#fff;--m-ntb:#d9a200;
+  --m-shadow:0 0 0 .5px rgba(0,0,0,.12),0 10px 30px rgba(0,0,0,.14),0 2px 6px rgba(0,0,0,.06);
+  --m-blur:saturate(160%) blur(20px);
+  color-scheme:light}
+
+html[data-theme] body{font-family:var(--m-font);-webkit-font-smoothing:antialiased;color:var(--m-text);font-size:13px}
+html[data-theme] body *{font-family:inherit}
+html[data-theme] body .fas,html[data-theme] body .fa{font-family:"Font Awesome 5 Free"!important}
+html[data-theme] body .num,html[data-theme] body input{font-variant-numeric:tabular-nums}
+
+/* Header tetap biru tua seperti semula (tidak diubah di sini) */
+
+/* Sidebar kaca */
+html[data-theme] body .panel{border-radius:16px!important;background:var(--m-glass)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);box-shadow:var(--m-shadow)!important;border:0!important;color:var(--m-text)}
+html[data-theme] body .panel-head{background:transparent!important;border-bottom:.5px solid var(--m-sep)!important;padding:14px 16px 10px!important}
+html[data-theme] body .panel-head h2{font-size:15px;font-weight:600;color:var(--m-text);letter-spacing:-.01em}
+html[data-theme] body .panel-head h2 i{color:var(--m-accent)}
+html[data-theme] body .panel-head p{color:var(--m-text-2);font-size:12px}
+html[data-theme] body .panel-head button,html[data-theme] body .panel .close{background:var(--m-fill)!important;color:var(--m-text-2)!important;border-radius:50%!important;width:26px!important;height:26px!important;box-shadow:none!important;border:0!important}
+html[data-theme] body .panel-body{background:transparent!important}
+html[data-theme] body .section-title{color:var(--m-text-3)!important;font-size:11px!important;font-weight:600!important;margin:14px 4px 6px!important}
+
+/* Peta dasar: segmented control */
+html[data-theme] body .ux-base-cards{display:flex!important;gap:0;padding:2px;margin:0 2px;height:auto;border-radius:9px;background:var(--m-fill)}
+html[data-theme] body .ux-base-card{flex:1;height:26px!important;min-height:0!important;padding:0!important;border:0!important;border-radius:7px!important;background:transparent!important;box-shadow:none!important;color:var(--m-text);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center}
+html[data-theme] body .ux-base-card img,html[data-theme] body .ux-base-card .ux-base-thumb,html[data-theme] body .ux-base-card:after,html[data-theme] body .ux-base-card:before{display:none!important}
+html[data-theme] body .ux-base-card.active{background:var(--m-glass-strong)!important;box-shadow:0 1px 3px rgba(0,0,0,.18),0 0 0 .5px rgba(0,0,0,.06)!important;font-weight:600}
+html[data-theme] body .ux-base-card *{color:inherit!important;font-size:12px!important}
+
+/* Daftar layer seperti sidebar Finder */
+html[data-theme] body #themeList .layer,html[data-theme] body .ux-active{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:8px!important;padding:7px 8px!important}
+html[data-theme] body #themeList .layer:hover{background:var(--m-hover)!important}
+html[data-theme] body .layer-title{color:var(--m-text)!important;font-size:13px!important;font-weight:500!important;line-height:1.3}
+html[data-theme] body .layer-legal,html[data-theme] body .layer-meta,html[data-theme] body .layer-desc{color:var(--m-text-2)!important;font-size:11px!important;font-weight:400!important}
+html[data-theme] body .layer-group{border-bottom:0!important}
+html[data-theme] body .layer-group>summary{color:var(--m-text)!important;font-size:13px!important;font-weight:500!important;padding:7px 8px!important;border-radius:8px}
+html[data-theme] body .layer-group>summary:hover{background:var(--m-hover)}
+html[data-theme] body .layer-group>summary:after{content:''!important;width:0;height:0;border:4px solid transparent;border-left:6px solid var(--m-text-3);border-right:0;order:-1;margin-right:2px}
+html[data-theme] body .layer-group-body{border-left:0!important;margin-left:18px!important;padding-left:0!important}
+html[data-theme] body .ux-group-count{background:transparent!important;color:var(--m-text-3)!important;font-weight:400!important}
+html[data-theme] body .ux-group-count.on{background:var(--m-ntb)!important;color:#1d1d1f!important;font-weight:600!important}
+html[data-theme] body .regional-island-title{color:var(--m-text-3)!important;font-size:11px!important;font-weight:600!important}
+html[data-theme] body .regional-island-title:before{color:var(--m-ntb)!important;font-size:12px!important}
+
+/* Sakelar macOS */
+html[data-theme] body .switch .track{background:var(--m-fill-2)!important;box-shadow:none!important;border:0!important}
+html[data-theme] body .switch input:checked+.track{background:var(--m-accent)!important}
+html[data-theme] body .switch .track:before{box-shadow:0 1px 3px rgba(0,0,0,.25),0 0 0 .5px rgba(0,0,0,.04)!important;background:#fff!important}
+
+/* Kontrol peta */
+html[data-theme] body .leaflet-bar,html[data-theme] body .lontar-toolbox{background:var(--m-glass)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);box-shadow:var(--m-shadow)!important;border:0!important;border-radius:11px!important;overflow:hidden}
+html[data-theme] body .leaflet-bar a,html[data-theme] body .leaflet-bar button,html[data-theme] body .lontar-toolbox>button,html[data-theme] body .lontar-toolbox>a{background:transparent!important;color:var(--m-text)!important;border-color:var(--m-sep)!important;width:36px!important;height:36px!important;line-height:36px!important}
+html[data-theme] body .leaflet-bar a:hover,html[data-theme] body .leaflet-bar button:hover{background:var(--m-hover)!important}
+html[data-theme] body .leaflet-bar i,html[data-theme] body .lontar-toolbox i{color:var(--m-text)!important}
+html[data-theme] body .lontar-toolbox-menu,html[data-theme] body .ux-tools-sheet{background:var(--m-glass-strong)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);box-shadow:var(--m-shadow)!important;border:0!important;color:var(--m-text)}
+html[data-theme] body .lontar-toolbox-item{color:var(--m-text)!important;border-radius:6px}
+html[data-theme] body .lontar-toolbox-item:hover{background:var(--m-accent)!important;color:#fff!important}
+
+/* Legenda, catatan, toast */
+html[data-theme] body .ux-legend{background:var(--m-glass)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);box-shadow:var(--m-shadow)!important;border:0!important;border-radius:14px!important;color:var(--m-text)}
+html[data-theme] body .ux-legend *{color:var(--m-text)}
+html[data-theme] body .ux-legend-toggle{background:transparent!important;font-weight:600}
+html[data-theme] body .legend-swatch,html[data-theme] body .ux-legend .swatch,html[data-theme] body .ux-legend [class*="swatch"]{border-radius:4px!important;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.25)!important}
+html[data-theme] body .ux-legend-count{background:var(--m-fill)!important;color:var(--m-text-2)!important}
+html[data-theme] body .ux-map-hint,html[data-theme] body .toast,html[data-theme] body .guide-coach{background:var(--m-glass-strong)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);color:var(--m-text)!important;box-shadow:var(--m-shadow)!important;border:0!important;border-radius:12px!important;font-size:12px}
+html[data-theme] body .guide-coach:before{display:none}
+html[data-theme] body .ux-map-hint i{color:var(--m-accent)!important}
+
+
+@media (prefers-reduced-transparency:reduce){html[data-theme]{--m-glass:var(--m-glass-strong)}}
+
+html[data-theme] body .leaflet-control-attribution,html[data-theme] body .ux-scale,html[data-theme] body .leaflet-control-scale-line{background:var(--m-glass)!important;color:var(--m-text)!important;border-color:var(--m-sep)!important}
+html[data-theme] body .ux-active *{color:var(--m-text)}
+html[data-theme] body .ux-active-head,html[data-theme] body .ux-active-head *{color:var(--m-text-2)!important;font-weight:600}
+html[data-theme] body .ux-active-clear{color:#ff453a!important;background:transparent!important;font-weight:500}
+html[data-theme="light"] body .ux-active-clear{color:#d70015!important}
+html[data-theme] body .ux-active-row,html[data-theme] body .ux-active-item{color:var(--m-text-2)!important;background:transparent!important;border-color:var(--m-sep)!important}
+html[data-theme] body .ux-active-name{color:var(--m-text)!important;font-weight:500!important}
+html[data-theme] body .ux-active-off,html[data-theme] body .ux-active-off *{color:var(--m-text-3)!important;background:transparent!important}
+
+/* ---------- Jendela & panel hasil ---------- */
+html[data-theme] body .modal-shell{background:rgba(0,0,0,.18)}
+html[data-theme] body #coordinateModal{background:transparent!important}
+html[data-theme] body .modal{background:var(--m-glass-strong)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);box-shadow:var(--m-shadow)!important;border:0!important;color:var(--m-text)}
+html[data-theme] body .modal-top{background:transparent!important;color:var(--m-text)!important;border-bottom:.5px solid var(--m-sep)!important}
+html[data-theme] body .modal-top h2,html[data-theme] body .modal-top h2 *{color:var(--m-text)!important;font-weight:600}
+html[data-theme] body .modal-top h2 i{color:var(--m-accent)!important}
+html[data-theme] body .modal-top button,html[data-theme] body .modal-top .close{background:var(--m-fill)!important;color:var(--m-text-2)!important;border:0!important;box-shadow:none!important}
+html[data-theme] body .ux-sheet-grip{background:var(--m-fill-2)!important}
+html[data-theme] body .modal-body{background:transparent!important;color:var(--m-text)}
+html[data-theme] body .modal-body p,html[data-theme] body .modal-body li,html[data-theme] body .modal-body label,html[data-theme] body .modal-body small{color:var(--m-text-2)}
+html[data-theme] body .modal-body h3,html[data-theme] body .modal-body h4,html[data-theme] body .modal-body strong,html[data-theme] body .modal-body b{color:var(--m-text)}
+html[data-theme] body .result-card,html[data-theme] body .analysis-summary,html[data-theme] body .analysis-out-group,html[data-theme] body .notice,html[data-theme] body .team-card,html[data-theme] body .guide-step,html[data-theme] body .about-card{background:var(--m-glass-thin)!important;border:.5px solid var(--m-sep)!important;box-shadow:none!important;color:var(--m-text)}
+html[data-theme] body .result-card *:not(.legend-swatch):not(.swatch):not(i):not(.match-status),html[data-theme] body .analysis-summary *:not(i),html[data-theme] body .notice *:not(i){color:inherit;border-color:var(--m-sep)}
+html[data-theme] body .result-card small,html[data-theme] body .result-card .muted,html[data-theme] body .result-meta{color:var(--m-text-2)!important}
+html[data-theme] body .result-card.out{opacity:.82}
+html[data-theme] body .analysis-alert{background:rgba(255,159,10,.14)!important;border:.5px solid rgba(255,159,10,.4)!important;color:var(--m-text)!important}
+html[data-theme] body .modal-body table{color:var(--m-text)}
+html[data-theme] body .modal-body th{background:var(--m-fill)!important;color:var(--m-text-2)!important}
+html[data-theme] body .modal-body td{border-color:var(--m-sep)!important}
+html[data-theme] body .modal-body a{color:var(--m-accent)}
+
+/* ---------- Isian & tombol ---------- */
+html[data-theme] body input[type=text]:not(.ux-search input),html[data-theme] body input[type=number],html[data-theme] body input[type=search]:not(.ux-search input),html[data-theme] body textarea,html[data-theme] body select{background:var(--m-fill)!important;color:var(--m-text)!important;border:.5px solid var(--m-sep)!important;border-radius:7px!important;box-shadow:none!important}
+html[data-theme] body input:focus,html[data-theme] body textarea:focus,html[data-theme] body select:focus{outline:3px solid color-mix(in srgb,var(--m-accent) 45%,transparent)!important;outline-offset:0}
+html[data-theme] body .btn{border-radius:8px!important;font-weight:500;box-shadow:none!important}
+html[data-theme] body .btn.primary,html[data-theme] body #disclaimerModal #acceptDisclaimer,html[data-theme] body .measurement-print .btn{background:var(--m-accent)!important;color:#fff!important;border:0!important}
+html[data-theme] body .btn.light,html[data-theme] body .modal-body .btn:not(.primary){background:var(--m-fill)!important;color:var(--m-text)!important;border:0!important}
+html[data-theme] body .analysis-progress,html[data-theme] body .upload-progress-track{background:var(--m-fill)!important}
+html[data-theme] body .analysis-progress span,html[data-theme] body .upload-progress-track i{background:var(--m-accent)!important}
+html[data-theme] body input[type=range]{accent-color:var(--m-accent)}
+
+/* ---------- Disclaimer ---------- */
+html[data-theme] body #disclaimerModal .modal-top{background:transparent!important}
+html[data-theme] body #disclaimerModal .disclaimer-title{color:var(--m-text)!important}
+html[data-theme] body #disclaimerModal .disclaimer-tagline,html[data-theme] body #disclaimerModal .modal-body *{color:var(--m-text-2)!important}
+html[data-theme] body #disclaimerModal .modal-body h3,html[data-theme] body #disclaimerModal .modal-body .disclaimer-label{color:var(--m-accent)!important}
+html[data-theme] body #disclaimerModal #acceptDisclaimer{color:#fff!important}
+
+/* ---------- HP ---------- */
+html[data-theme] body .mobile-nav{background:var(--m-glass)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);box-shadow:0 -.5px 0 var(--m-hair)!important}
+html[data-theme] body .mobile-nav button{color:var(--m-text-2)!important;background:transparent!important;font-weight:500}
+html[data-theme] body .mobile-nav button i{color:var(--m-text-2)!important}
+html[data-theme] body .mobile-nav button.active,html[data-theme] body .mobile-nav button[aria-expanded="true"],html[data-theme] body .mobile-nav button.active i{color:var(--m-accent)!important}
+html[data-theme] body .mobile-nav button:disabled{opacity:.4}
+html[data-theme] body .ux-tools-head strong{color:var(--m-text)!important}
+html[data-theme] body .ux-tools-close{background:var(--m-fill)!important;color:var(--m-text-2)!important}
+html[data-theme] body .ux-tools-item{color:var(--m-text)!important}
+html[data-theme] body .ux-tools-item i{color:var(--m-accent)!important}
+html[data-theme] body .ux-tools-item:hover,html[data-theme] body .ux-tools-item:active{background:var(--m-hover)!important}
+html[data-theme] body .desktop-analysis-dock:not([hidden]){background:var(--m-accent)!important}
+
+/* ---------- Popup peta & lain-lain ---------- */
+html[data-theme] body .leaflet-popup-content-wrapper,html[data-theme] body .leaflet-popup-tip{background:var(--m-glass-strong)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);color:var(--m-text)!important;box-shadow:var(--m-shadow)!important}
+html[data-theme] body .leaflet-tooltip{background:var(--m-glass-strong)!important;color:var(--m-text)!important;border:0!important;box-shadow:var(--m-shadow)!important}
+html[data-theme] body .leaflet-container a.leaflet-popup-close-button{color:var(--m-text-2)!important}
+html[data-theme] body .toast{background:var(--m-glass-strong)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);color:var(--m-text)!important}
+html[data-theme] body .legend-toggle{color:var(--m-accent)!important;background:transparent!important}
+html[data-theme] body .legend-box{background:transparent!important;color:var(--m-text-2)}
+html[data-theme] body .layer-progress{background:var(--m-fill)!important}
+html[data-theme] body .layer-progress span{background:var(--m-accent)!important}
+html[data-theme] body .field-explorer,html[data-theme] body .explorer-dialog,html[data-theme] body .lontar-explorer{background:var(--m-glass-strong)!important;color:var(--m-text)}
+html[data-theme] ::-webkit-scrollbar{width:10px;height:10px}
+html[data-theme] ::-webkit-scrollbar-thumb{background:var(--m-fill-2);border-radius:10px;border:3px solid transparent;background-clip:content-box}
+
+@media(max-width:760px){
+  html[data-theme] body .ux-search{background:var(--m-glass-strong)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);box-shadow:var(--m-shadow)!important;height:42px;border-radius:12px!important}
+}
+
+
+/* Status hasil analisis */
+html[data-theme] body .match-status{background:var(--m-fill)!important;color:var(--m-text-2)!important;font-weight:600!important}
+html[data-theme] body .match-status.in{background:rgba(52,199,89,.18)!important;color:#1a7f37!important}
+html[data-theme] body .match-status.orange{background:rgba(255,159,10,.18)!important;color:#a14b00!important}
+/* Status kiri bawah & skala */
+html[data-theme] body .status{background:var(--m-glass-strong)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);color:var(--m-text)!important;box-shadow:var(--m-shadow)!important;border:0!important;border-radius:10px!important}
+html[data-theme] body .map-scale-display,html[data-theme] body .leaflet-control-scale{background:var(--m-glass)!important;-webkit-backdrop-filter:var(--m-blur);backdrop-filter:var(--m-blur);border:0!important;box-shadow:var(--m-shadow)!important;color:var(--m-text)!important;border-radius:9px!important}
+html[data-theme] body .map-scale-display i,html[data-theme] body .leaflet-control-scale-line{border-color:var(--m-text)!important;color:var(--m-text)!important}
+
+/* ---------- Kejelasan panel analisis ---------- */
+html[data-theme] body .modal-top,html[data-theme] body #coordinateModal .modal-top{position:sticky!important;top:0;z-index:5;background:#fbfbfc!important}
+html[data-theme] body .ux-sheet-grip{background:rgba(60,60,67,.25)!important}
+html[data-theme] body .result-card,html[data-theme] body .analysis-summary,html[data-theme] body .notice{background:#fff!important;border:1px solid rgba(60,60,67,.12)!important}
+html[data-theme] body .analysis-alert{background:#fff7e8!important;border:1px solid #f3d29a!important;color:#5c3b00!important}
+html[data-theme] body .analysis-alert *{color:inherit}
+html[data-theme] body .analysis-alert strong,html[data-theme] body .analysis-alert b{color:#3d2700!important}
+html[data-theme] body .match-status{width:auto!important;flex:0 0 auto!important;align-self:flex-start;justify-self:start}
+
+/* ---------- Tombol tutup seragam ala macOS: lingkaran abu kecil dengan tanda silang tipis ---------- */
+html[data-theme] body #desktopPanelClose,html[data-theme] body .modal-top .close,html[data-theme] body #closeFieldExplorer,html[data-theme] body #closeExplorerWorkbench,html[data-theme] body #printSetupClose,html[data-theme] body .ux-tools-close,html[data-theme] body #analysisPanelSizeToggle{
+  flex:0 0 auto!important;width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;padding:0!important;margin:0!important;border:0!important;border-radius:50%!important;
+  background:rgba(118,118,128,.14) center/10px 10px no-repeat!important;box-shadow:none!important;color:transparent!important;font-size:0!important;line-height:0!important;cursor:pointer;transition:background-color .15s}
+html[data-theme] body #desktopPanelClose,html[data-theme] body .modal-top .close,html[data-theme] body #closeFieldExplorer,html[data-theme] body #closeExplorerWorkbench,html[data-theme] body #printSetupClose,html[data-theme] body .ux-tools-close{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 1.5l7 7M8.5 1.5l-7 7' stroke='%233c3c43' stroke-opacity='.75' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E")!important}
+html[data-theme] body #analysisPanelSizeToggle{background-size:11px 11px!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.8 6.6 5 3.4l3.2 3.2' fill='none' stroke='%233c3c43' stroke-opacity='.75' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important}
+html[data-theme] body #coordinateModal[data-sheet="full"] #analysisPanelSizeToggle{transform:rotate(180deg)}
+html[data-theme] body #desktopPanelClose *,html[data-theme] body .modal-top .close *,html[data-theme] body .ux-tools-close *,html[data-theme] body #analysisPanelSizeToggle *{display:none!important}
+html[data-theme] body #desktopPanelClose:hover,html[data-theme] body .modal-top .close:hover,html[data-theme] body #closeFieldExplorer:hover,html[data-theme] body #closeExplorerWorkbench:hover,html[data-theme] body #printSetupClose:hover,html[data-theme] body .ux-tools-close:hover,html[data-theme] body #analysisPanelSizeToggle:hover{background-color:rgba(118,118,128,.26)!important}
+html[data-theme] body #desktopPanelClose:focus-visible,html[data-theme] body .modal-top .close:focus-visible,html[data-theme] body #analysisPanelSizeToggle:focus-visible{outline:3px solid rgba(0,122,255,.45)!important;outline-offset:1px}
+html[data-theme] body .lontar-toolbox{overflow:visible!important}
+html[data-theme] body .lontar-toolbox-button{width:36px!important;height:36px!important;border-radius:11px!important;background:transparent!important;color:var(--m-text)!important}
+html[data-theme] body .lontar-toolbox-button svg{fill:currentColor}
+
+/* Ringkasan hasil: layer tematik (LSD, LP2B, PIPPIB, dll.) tampil sama seperti RTRW — tanpa segitiga, tanpa warna oranye */
+html[data-theme] body .analysis-summary li.flag .sum-layer:before{content:none!important;display:none!important}
+html[data-theme] body .analysis-summary li.flag .sum-value,html[data-theme] body .analysis-summary li.flag .sum-layer{color:inherit!important}
+html[data-theme] body .match-status.warn{background:rgba(52,199,89,.18)!important;color:#1a7f37!important;box-shadow:none!important}
+
+/* ---------- Menu Alat di header ---------- */
+.ux-head-tools{position:relative;display:inline-flex}
+html[data-theme] body .ux-head-tools .lontar-toolbox-menu{position:absolute!important;top:calc(100% + 10px)!important;left:auto!important;right:0!important;z-index:2000;display:none!important;width:232px!important;padding:6px!important;border-radius:12px!important;background:#fff!important;box-shadow:var(--m-shadow)!important;border:0!important}
+html[data-theme] body .ux-head-tools.open .lontar-toolbox-menu{display:block!important}
+html[data-theme] body .ux-head-tools .lontar-toolbox-title{padding:6px 10px 4px!important;color:var(--m-text-3)!important;font-size:11px!important;font-weight:600!important}
+html[data-theme] body .ux-head-tools .lontar-toolbox-item{display:flex!important;align-items:center;gap:10px;width:100%;min-height:34px;padding:6px 10px!important;border:0!important;border-radius:7px!important;background:transparent!important;color:var(--m-text)!important;font-size:13px!important;font-weight:500!important;text-align:left}
+html[data-theme] body .ux-head-tools .lontar-toolbox-item i,html[data-theme] body .ux-head-tools .lontar-toolbox-item svg{width:18px;color:var(--m-accent)!important;background:transparent!important;text-align:center}
+html[data-theme] body .ux-head-tools .lontar-toolbox-item:hover{background:var(--m-accent)!important;color:#fff!important}
+html[data-theme] body .ux-head-tools .lontar-toolbox-item:hover i{color:#fff!important}
+html[data-theme] body .ux-head-tools.open #headerToolsButton{background:rgba(255,255,255,.14)!important}
+/* Kontrol toolbox lama di peta disembunyikan; tombol-tombol peta disamakan lebarnya (36px) */
+html[data-theme] body .leaflet-control.lontar-toolbox{display:none!important}
+html[data-theme] body .leaflet-top.leaflet-left .leaflet-control{width:36px!important;min-width:36px!important;max-width:36px!important}
+html[data-theme] body .leaflet-top.leaflet-left .leaflet-control a,html[data-theme] body .leaflet-top.leaflet-left .leaflet-control button{width:36px!important;min-width:36px!important;height:36px!important;line-height:36px!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;box-sizing:border-box}
+@media(max-width:760px){.ux-head-tools{display:none!important}}
+/* jembatan tak terlihat antara tombol Alat dan menunya, supaya menu tidak tertutup saat kursor turun */
+html[data-theme] body .ux-head-tools.open .lontar-toolbox-menu:before{content:"";position:absolute;left:0;right:0;top:-12px;height:12px}
+html[data-theme] body .ux-search input:focus,html[data-theme] body .ux-search input:focus-visible{outline:none!important;box-shadow:none!important}
 </style>
 </body>
 <script>(function(){var h=document.querySelector('#disclaimerModal .modal-top h2');if(h){h.innerHTML='<img class="disclaimer-logo" src="images/bale-ruang-ntb-logo-v3.png" alt="Logo Bale Ruang NTB"><span class="disclaimer-title">Bale Ruang NTB</span><span class="disclaimer-tagline">Satu Tempat, Seluruh Informasi Ruang</span>';}var modal=document.getElementById('disclaimerModal'),intro=modal&&modal.querySelector('.modal-body:before');if(modal){var strong=modal.querySelector('.notice strong');if(strong)strong.style.display='none';var p=modal.querySelector('.notice p');if(p)p.textContent='Bale Ruang NTB menyediakan informasi awal berbasis data geospasial untuk membantu memahami konteks tata ruang, pemanfaatan ruang, dan kondisi bidang pada lokasi yang diperiksa. Informasi ini bersifat pendukung dan tidak menggantikan keputusan resmi atau dokumen hukum dari instansi yang berwenang.';var lower=modal.querySelector('.modal-body>p');if(lower)lower.remove();}})();</script></html>
