@@ -102,6 +102,41 @@
   .switch input:checked+.track:before{transform:translateX(20px)}
 }
 </style>
+<style id="ux-hasil-rapi">
+/* Ringkasan hasil analisis: tabel tak terlihat, nama layer dua baris, rata kiri */
+#coordinateModal .sum3{margin-top:2px;font-family:var(--m-font)}
+#coordinateModal .sum3 *{box-sizing:border-box}
+#coordinateModal .nowrap{white-space:nowrap}
+#coordinateModal .sum3-subrow{grid-column:1/-1;margin:-3px 0 4px}
+#coordinateModal .sum3-head .sum3-name{margin:0}
+#coordinateModal .sum3-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px 16px;padding:10px 0 12px;border-bottom:1px solid var(--m-sep)}
+#coordinateModal .sum3-meta-item{min-width:0;display:flex;flex-direction:column;gap:2px}
+#coordinateModal .sum3-label{color:var(--m-text-3)!important;font-size:11px!important;font-weight:600!important;letter-spacing:.02em;text-transform:uppercase}
+#coordinateModal .sum3-meta-item b{color:var(--m-text)!important;font-size:14px!important;font-weight:600!important;line-height:1.3;overflow-wrap:anywhere}
+#coordinateModal .sum3-meta-item small{display:block;margin-bottom:4px;color:var(--m-text-2)!important;font-size:12px!important;line-height:1.35;overflow-wrap:anywhere}
+#coordinateModal .sum3-layer{padding:11px 0 10px;border-top:1px solid var(--m-sep)}
+#coordinateModal .sum3-meta+.sum3-layer{border-top:0}
+#coordinateModal .sum3-row{display:grid;grid-template-columns:minmax(0,1fr) 6.4em 3.9em;column-gap:10px;align-items:baseline}
+#coordinateModal .sum3-name{min-width:0;margin:0 0 4px}
+#coordinateModal .sum3-main{display:block;color:var(--m-text)!important;font-size:13.5px!important;font-weight:600!important;line-height:1.3;overflow-wrap:anywhere}
+#coordinateModal .sum3-sub{display:block;margin-top:1px;color:var(--m-text-3)!important;font-size:11.5px!important;font-weight:400!important;line-height:1.3;overflow-wrap:anywhere}
+#coordinateModal .sum3-catname{min-width:0;padding:3px 0 0;color:#24507a!important;font-size:13px!important;font-weight:400!important;line-height:1.35;overflow-wrap:anywhere}
+#coordinateModal .sum3-cat{padding-top:2px}
+#coordinateModal .sum3-num,#coordinateModal .sum3-pct{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-size:12.5px!important;line-height:1.3}
+#coordinateModal .sum3-head .sum3-num,#coordinateModal .sum3-head .sum3-pct{color:var(--m-text)!important;font-weight:600!important}
+#coordinateModal .sum3-cat .sum3-num{color:var(--m-text-2)!important;font-weight:400!important}
+#coordinateModal .sum3-cat .sum3-pct{color:#24507a!important;font-weight:500!important}
+@media (max-width:420px){#coordinateModal .sum3-row{grid-template-columns:minmax(0,1fr) 5.9em 3.6em;column-gap:8px}#coordinateModal .sum3-num,#coordinateModal .sum3-pct{font-size:12px!important}}
+/* Kartu per layer: judul penuh di atas, status & saklar di baris sendiri */
+#coordinateModal .progress-layer-card .result-head{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:7px!important;margin-bottom:8px}
+#coordinateModal .progress-layer-card .result-head h3{width:100%;margin:0!important;line-height:1.3!important;overflow-wrap:anywhere}
+#coordinateModal .progress-layer-card .card-main{display:block;color:var(--m-text)!important;font-size:13.5px!important;font-weight:600!important}
+#coordinateModal .progress-layer-card .card-sub{display:block;margin-top:1px;color:var(--m-text-2)!important;font-size:12px!important;font-weight:400!important}
+#coordinateModal .progress-layer-card .layer-legal{display:block;margin-top:2px;color:var(--m-text-3)!important;font-size:11px!important}
+#coordinateModal .progress-layer-card .result-head-actions{display:flex!important;width:100%!important;justify-content:space-between!important;align-items:center!important;gap:8px!important}
+#coordinateModal .progress-layer-card .result-head-actions .match-status{order:-1}
+#coordinateModal .progress-layer-card .result-head>.match-status{align-self:flex-start}
+</style>
 </head>
 <body>
   <header class="header"><div class="brand"><div class="logo"><img src="images/bale-ruang-ntb-logo-v3.png" alt="Logo Bale Ruang NTB"></div><div><strong>Bale Ruang NTB</strong><small>Satu Tempat, Seluruh Informasi Ruang</small></div></div><nav class="head-actions"><button type="button" class="btn" data-open="search"><i class="fas fa-search"></i>Cari Lokasi</button><button type="button" class="btn" data-open="upload"><i class="fas fa-upload"></i>Upload SHP/KML</button><button type="button" class="btn" data-open="guide"><i class="fas fa-book-open"></i>Panduan</button><button type="button" class="btn" data-open="about"><i class="fas fa-info-circle"></i>Tentang</button></nav></header>
@@ -225,6 +260,15 @@
     var CONSTRAINT_LAYERS={6:'LSD',9:'KP2B',11:'PIPPIB'};
     function splitLayerName(name){var text=String(name||'').replace(/\s*\((?:sumber\s+)?SHP terbaru\)\s*/i,' ').trim(),match=text.match(/^(.*?)\s*\(([^()]*)\)\s*$/);if(match&&/^[A-Z0-9]{2,8}$/.test(match[2].trim()))return{title:text,legal:''};return match?{title:match[1].trim(),legal:match[2].trim()}:{title:text,legal:''}}
     defs.forEach(function(def){var parts=splitLayerName(def.name);def.shortName=parts.title;def.legalBasis=parts.legal||LAYER_DESCRIPTIONS[def.index]||''});
+    // Nama layer dua baris untuk hasil analisis: baris 1 jenis dokumen, baris 2 wilayah/periode.
+    function summaryLayerParts(def){var t=def.shortName||splitLayerName(def.name).title,m;
+      if((m=t.match(/^(Pola Ruang RTRW|Kawasan Strategis RTRW)\s+(.+)$/)))return{main:m[1],sub:m[2]};
+      if((m=t.match(/^(.+?)\s+—\s+(.+)$/)))return{main:m[1],sub:m[2]};
+      if(/^RDTR/.test(t)){var years=(t.match(/\s(\d{4}–\d{4})$/)||[])[1],base=years?t.slice(0,t.length-years.length).trim():t;return{main:base,sub:[def.regionalGroup||'',years||''].filter(Boolean).join(' · ')}}
+      return{main:t,sub:LAYER_DESCRIPTIONS[def.index]||''}}
+    function keepYears(html){return html.replace(/(\d{4}–\d{4})/g,'<span class="nowrap">$1</span>')}
+    function summaryLayerNameHtml(def,split){var p=summaryLayerParts(def),main='<span class="sum3-main">'+keepYears(safe(p.main))+'</span>',sub=p.sub?' <span class="sum3-sub">'+keepYears(safe(p.sub))+'</span>':'';return split?{main:main,sub:sub}:main+sub}
+    function cardLayerTitleHtml(def){var p=summaryLayerParts(def),legal=def.legalBasis!=null?def.legalBasis:splitLayerName(def.name).legal;var subIsLegal=legal===p.sub;if(subIsLegal)legal='';return'<span class="card-main">'+keepYears(safe(p.main))+'</span>'+(p.sub?' <span class="card-sub'+(subIsLegal?' layer-legal':'')+'">'+keepYears(safe(p.sub))+'</span>':'')+(legal?'<span class="layer-legal">'+safe(legal)+'</span>':'')}
     function layerTitleHtml(item){if(!item)return'';var parts=splitLayerName(item.name),title=item.shortName||parts.title,sub=item.legalBasis!=null?item.legalBasis:parts.legal;return safe(title)+(sub?'<span class="layer-legal">'+safe(sub)+'</span>':'')}
     function setZoomHint(def,on){if(!def||!def.row)return;var hint=def.row.querySelector('.layer-zoom-hint');if(on&&!hint){hint=document.createElement('button');hint.type='button';hint.className='layer-zoom-hint';hint.innerHTML='<i class="fas fa-search-plus" aria-hidden="true"></i> Perbesar ke area data';hint.addEventListener('click',function(event){event.stopPropagation();var center=map.getCenter(),target=catalogHasDataInView(def)?[center.lat,center.lng]:(layerCatalogCenter(def)||(def.regionalGroup&&regionalMapTargets[def.regionalGroup]));if(target)map.setView(target,Math.max(14,map.getZoom()),{animate:true,duration:.45})});var meta=def.row.querySelector('.layer-meta');meta.parentNode.insertBefore(hint,meta.nextSibling)}if(hint)hint.hidden=!on}
     // Saat zoom < 14 data tidak digambar; tampilkan arsiran cakupan agar pengguna tahu di mana data tersedia.
@@ -402,7 +446,7 @@
       return Array.prototype.map.call(document.querySelectorAll('#'+containerId+' .result-card:not(.upload-result)'),function(card){
         if(card.querySelector('.progressive-loading'))return null;
         var title=(function(node){if(!node)return'';var copy=node.cloneNode(true);copy.querySelectorAll('.layer-legal').forEach(function(sub){sub.textContent=' ('+sub.textContent+')'});return copy.textContent})(card.querySelector('h3')).trim(),statusEl=card.querySelector('.match-status'),status=statusEl?statusEl.textContent.trim():'',pairs=[];
-        if(!title||/Data bidang terpilih|Bidang yang diupload|Informasi penting/i.test(title))return null;var h3=card.querySelector('h3'),legalEl=h3&&h3.querySelector('.layer-legal'),nameCopy=h3?h3.cloneNode(true):null;if(nameCopy)nameCopy.querySelectorAll('.layer-legal').forEach(function(n){n.remove()});var shortName=nameCopy?nameCopy.textContent.trim():title,legalText=legalEl?legalEl.textContent.trim():'',fields=[];if(!legalText&&typeof splitLayerName==='function'){var sp=splitLayerName(shortName);shortName=sp.title;legalText=sp.legal}
+        if(!title||/Data bidang terpilih|Bidang yang diupload|Informasi penting/i.test(title))return null;var h3=card.querySelector('h3'),legalEl=h3&&h3.querySelector('.layer-legal'),nameCopy=h3?h3.cloneNode(true):null;if(nameCopy)nameCopy.querySelectorAll('.layer-legal').forEach(function(n){n.remove()});var shortName=h3&&h3.getAttribute('data-print-title')?h3.getAttribute('data-print-title'):(nameCopy?nameCopy.textContent.trim():title),legalText=legalEl?legalEl.textContent.trim():'',fields=[];if(!legalText&&typeof splitLayerName==='function'){var sp=splitLayerName(shortName);shortName=sp.title;legalText=sp.legal}
         card.querySelectorAll('.popup-table tr').forEach(function(row){var cells=row.querySelectorAll('th,td');if(cells.length>1)pairs.push({label:cells[0].textContent.trim(),value:cells[1].textContent.trim()})});
         var parts=[],isAdmin=/Batas Administrasi/i.test(title),isMeasured=card.classList.contains('measure-result')||!!card.querySelector('.match-status.orange'),isIn=status==='Masuk'||status==='Lokasi analisis'||isMeasured;
         if(isMeasured)status='Beririsan';
@@ -838,16 +882,17 @@
       function summarySubjectArea(){if(summaryAreaCache!==null)return summaryAreaCache;var total=0;(function walk(g){if(!g)return;if(g.type==='FeatureCollection')(g.features||[]).forEach(walk);else if(g.type==='Feature'){if(g.geometry&&(g.geometry.type==='Polygon'||g.geometry.type==='MultiPolygon'))total+=featureAreaInfo(g).area}else if(g.type==='Polygon'||g.type==='MultiPolygon')total+=geometryArea(g)})(reportGeometry);summaryAreaCache=total;return total}
       function sumArea(a){return a>=10000?(a/10000).toLocaleString('id-ID',{maximumFractionDigits:2})+' ha':Math.round(a).toLocaleString('id-ID')+' m²'}
       function sumPct(a){var base=summarySubjectArea();if(!base||!a)return'';var v=Math.min(100,a/base*100);return(v<0.1?'<0,1':v.toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1}))+'%'}
-      function summaryBlocks(inside){var out='',adminItem=inside.filter(function(item){return item.def.remoteBig||item.def.index===0})[0],base=polygonMode?summarySubjectArea():0;
-        if(adminItem){var places=(adminItem.hits||[]).map(function(f){var p=f.properties||{};return p.WADMKD?niceCase(p.WADMKD)+(p.WADMKC?', Kec. '+niceCase(p.WADMKC):''):''}).filter(function(v,i,a){return v&&a.indexOf(v)===i});if(!places.length){var c=itemCategory(adminItem);if(c)places=[c]}out+='<div class="sum2-place"><span>Desa/Kelurahan</span><b>'+safe(places.join(' • ')||'—')+'</b></div>'}
-        if(base)out+='<div class="sum2-place"><span>Luas bidang</span><b>'+safe(formatArea(base))+'</b></div>';
-        inside.filter(function(item){return item!==adminItem}).forEach(function(item){var name=item.def.shortName||splitLayerName(item.def.name).title,rows='',head='';
+      function summaryBlocks(inside){var out='',meta='',adminItem=inside.filter(function(item){return item.def.remoteBig||item.def.index===0})[0],base=polygonMode?summarySubjectArea():0;
+        if(adminItem){var seenPlace={},places=[];(adminItem.hits||[]).forEach(function(f){var p=f.properties||{};if(!p.WADMKD)return;var key=[p.WADMKD,p.WADMKC,p.WADMKK].join('|');if(seenPlace[key])return;seenPlace[key]=1;places.push('<b>'+safe(niceCase(p.WADMKD))+'</b><small>'+safe([p.WADMKC?'Kec. '+niceCase(p.WADMKC):'',p.WADMKK?niceCase(p.WADMKK):''].filter(Boolean).join(' · '))+'</small>')});if(!places.length){var c=itemCategory(adminItem);if(c)places=['<b>'+safe(c)+'</b>']}meta+='<div class="sum3-meta-item"><span class="sum3-label">Desa/Kelurahan</span>'+(places.join('')||'<b>—</b>')+'</div>'}
+        if(base){var areaText=String(formatArea(base)),areaMatch=areaText.match(/^(.*?)\s*\((.*)\)$/);meta+='<div class="sum3-meta-item"><span class="sum3-label">Luas bidang</span><b class="nowrap">'+safe(areaMatch?areaMatch[1]:areaText)+'</b>'+(areaMatch?'<small class="nowrap">'+safe(areaMatch[2])+'</small>':'')+'</div>'}
+        if(meta)out+='<div class="sum3-meta">'+meta+'</div>';
+        inside.filter(function(item){return item!==adminItem}).forEach(function(item){var name=summaryLayerNameHtml(item.def),parts=summaryLayerNameHtml(item.def,true);
           if(polygonMode){var cats=Object.keys(item.categories||{}).filter(function(n){return n!=='Tanpa keterangan'}).sort(function(a,b){return item.categories[b]-item.categories[a]}),total=item.polygonTotal||0;
-            head='<span class="sum2-total">'+safe(sumArea(total))+(sumPct(total)?'<em>'+safe(sumPct(total))+'</em>':'')+'</span>';
-            rows=cats.map(function(cat){var a=item.categories[cat],pct=base?Math.min(100,a/base*100):0;return'<div class="sum2-cat"><span class="sum2-name">'+safe(niceCase(cat))+'</span><span class="sum2-area">'+safe(sumArea(a))+'</span><span class="sum2-pct">'+safe(sumPct(a))+'</span></div>'}).join('')}
-          else{var field=legendField(item.def),values=[];(item.hits||[]).forEach(function(f){var v=(f.properties||{})[field];if(v!=null&&String(v).trim()!==''){v=niceCase(String(v));if(values.indexOf(v)<0)values.push(v)}});rows=(values.length?values:['Lokasi berada di dalam layer ini']).map(function(v){return'<div class="sum2-cat sum2-point"><span class="sum2-name">'+safe(v)+'</span></div>'}).join('')}
-          out+='<section class="sum2-layer"><div class="sum2-head"><span class="sum2-layer-name">'+safe(name)+'</span>'+head+'</div>'+rows+'</section>'});
-        return'<div class="sum2">'+out+'</div>'}
+            out+='<section class="sum3-layer sum3-area"><div class="sum3-row sum3-head"><div class="sum3-name">'+parts.main+'</div><div class="sum3-num">'+safe(sumArea(total))+'</div><div class="sum3-pct">'+safe(sumPct(total))+'</div>'+(parts.sub?'<div class="sum3-subrow">'+parts.sub+'</div>':'')+'</div>'+cats.map(function(cat){var a=item.categories[cat];return'<div class="sum3-row sum3-cat"><div class="sum3-catname">'+safe(niceCase(cat))+'</div><div class="sum3-num">'+safe(sumArea(a))+'</div><div class="sum3-pct">'+safe(sumPct(a))+'</div></div>'}).join('')+'</section>'}
+          else{var field=legendField(item.def),values=[];(item.hits||[]).forEach(function(f){var v=(f.properties||{})[field];if(v!=null&&String(v).trim()!==''){v=niceCase(String(v));if(values.indexOf(v)<0)values.push(v)}});
+            out+='<section class="sum3-layer"><div class="sum3-name">'+name+'</div>'+(values.length?values:['Lokasi berada di dalam layer ini']).map(function(v){return'<div class="sum3-catname">'+safe(v)+'</div>'}).join('')+'</section>'}
+        });
+        return'<div class="sum3">'+out+'</div>'}
       function renderAnalysisSummary(){if(token!==analysisToken)return;var items=analysisDefs.map(function(def){return checked[def.index]}).filter(function(item){return item&&!item.skipped}),inside=items.filter(function(item){return!item.error&&isIn(item)}),failed=items.filter(function(item){return item.error}),outside=items.length-inside.length-failed.length,pending=Math.max(0,relevantTotal-completed),flags=inside.filter(function(item){return CONSTRAINT_LAYERS[item.def.index]}).map(function(item){return CONSTRAINT_LAYERS[item.def.index]}),html='';
         if(flags.length)html+='<div class="analysis-alert" role="note"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i><div><strong>'+(polygonMode?'Bidang':'Lokasi')+' beririsan dengan '+safe(flags.join(', '))+'</strong><span>Pemanfaatan ruang di sini terikat ketentuan khusus perlindungan lahan/izin. Konfirmasikan kepada instansi berwenang.</span></div></div>';
         if(inside.some(function(item){return item.def.index===8}))html+='<div class="analysis-alert analysis-note" role="note"><i class="fas fa-info-circle" aria-hidden="true"></i><div><strong>'+(polygonMode?'Bidang':'Lokasi')+' berada dalam LP2B Hasil Verifikasi Usulan tahun 2026</strong><span>Belum merupakan penetapan; menunggu Keputusan Bupati/Wali Kota. Untuk rencana pemanfaatan, konfirmasikan ke Pemda setempat.</span></div></div>';
@@ -858,13 +903,13 @@
       function adminSummary(feature){var props=feature.properties||{};return'<table class="popup-table"><tr><th>Desa/Kelurahan</th><td>'+safe(props.WADMKD||'—')+'</td></tr><tr><th>Kecamatan</th><td>'+safe(props.WADMKC||'—')+'</td></tr><tr><th>Kabupaten/Kota</th><td>'+safe(props.WADMKK||'—')+'</td></tr><tr><th>Provinsi</th><td>'+safe(props.WADMPR||'Nusa Tenggara Barat')+'</td></tr></table>'}
       function cardHtml(item){
         var inside=isIn(item),detail='';
-        if(item.skipped)return'<div class="result-head"><h3>'+layerTitleHtml(item.def)+'</h3><span class="match-status out">Tidak diperiksa</span></div><p>'+safe(item.reason||'Pemeriksaan layer ini tidak diperlukan untuk lokasi tersebut.')+'</p>';
-        if(item.error)return'<div class="result-head"><h3>'+layerTitleHtml(item.def)+'</h3><span class="match-status out">Gagal diperiksa</span></div>';
+        if(item.skipped)return'<div class="result-head"><h3 data-print-title="'+safe(item.def.shortName||splitLayerName(item.def.name).title)+'">'+cardLayerTitleHtml(item.def)+'</h3><span class="match-status out">Tidak diperiksa</span></div><p>'+safe(item.reason||'Pemeriksaan layer ini tidak diperlukan untuk lokasi tersebut.')+'</p>';
+        if(item.error)return'<div class="result-head"><h3 data-print-title="'+safe(item.def.shortName||splitLayerName(item.def.name).title)+'">'+cardLayerTitleHtml(item.def)+'</h3><span class="match-status out">Gagal diperiksa</span></div>';
         if(inside&&item.def.remoteBig)detail=adminSummary(item.hits[0])+attributeDetails(item.hits.map(function(feature){feature.__def=item.def;return feature}));
         else if(inside&&polygonMode){detail='<p class="result-summary"><strong>≈ Luas beririsan: '+formatArea(item.polygonTotal)+'</strong></p>';var names=Object.keys(item.categories).sort();if(names.length)detail+='<details class="analysis-attributes"><summary>Lihat rincian kategori</summary><table class="popup-table">'+names.map(function(name){return'<tr><th>'+safe(name)+'</th><td>≈ '+formatArea(item.categories[name])+'</td></tr>'}).join('')+'</table></details>'}
         else if(inside){var field=legendField(item.def),values=item.hits.slice(0,5).map(function(feature){return(feature.properties||{})[field]}).filter(function(value){return value!==null&&value!==undefined&&String(value).trim()!==''});detail=values.length?'<p class="result-summary"><strong>'+safe(values[0])+'</strong>'+(values.length>1?' • '+values.length+' kategori/fitur pada lokasi ini':'')+'</p>':'';detail+=attributeDetails(item.hits.map(function(feature){feature.__def=item.def;return feature}));if(item.hits.length>5)detail+='<p class="result-summary">+'+(item.hits.length-5)+' fitur lain.</p>';if(item.def.index===8)detail+='<p class="lp2b-note">Hasil Verifikasi Usulan LP2B, belum merupakan penetapan. Sumber: Kementerian ATR/BPN &amp; Pemprov NTB, 6 Okt 2026.</p>'}
         else detail='<p>'+(polygonMode?'Bidang tidak beririsan dengan layer ini.':'Koordinat tidak berada pada cakupan layer ini.')+'</p>';
-        return'<div class="result-head"><h3>'+layerTitleHtml(item.def)+'</h3><div class="result-head-actions">'+(inside?analysisLayerSwitch(item.def.index,item.def.name):'')+'<span class="match-status '+(inside?(CONSTRAINT_LAYERS[item.def.index]?'warn':'in'):'out')+'">'+(inside?'Masuk':'Tidak Masuk')+'</span></div></div>'+detail;
+        return'<div class="result-head"><h3 data-print-title="'+safe(item.def.shortName||splitLayerName(item.def.name).title)+'">'+cardLayerTitleHtml(item.def)+'</h3><div class="result-head-actions">'+(inside?analysisLayerSwitch(item.def.index,item.def.name):'')+'<span class="match-status '+(inside?(CONSTRAINT_LAYERS[item.def.index]?'warn':'in'):'out')+'">'+(inside?'Masuk':'Tidak Masuk')+'</span></div></div>'+detail;
       }
       function showItem(index,item){
         if(token!==analysisToken)return;checked[index]=item;completed++;
