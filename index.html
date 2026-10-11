@@ -136,6 +136,36 @@
 #coordinateModal .progress-layer-card .result-head-actions{display:flex!important;width:100%!important;justify-content:space-between!important;align-items:center!important;gap:8px!important}
 #coordinateModal .progress-layer-card .result-head-actions .match-status{order:-1}
 #coordinateModal .progress-layer-card .result-head>.match-status{align-self:flex-start}
+
+/* Opsi B: satu daftar lipat — kartu detail lama disembunyikan (tetap dipakai PDF & saklar peta) */
+#coordinateResults .progress-layer-card,#coordinateResults .analysis-out-group{display:none!important}
+#coordinateModal .sum3-acts{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
+#coordinateModal .sum3-meta+.sum3-acts{margin:-2px 0 0;padding-bottom:10px}
+#coordinateModal .sum3-meta+.sum3-acts+.sum3-detail{margin-bottom:10px}
+#coordinateModal .sum3-more{display:inline-flex;align-items:center;gap:6px;padding:4px 0;border:0;background:none;color:var(--m-accent)!important;font:600 12.5px var(--m-font);cursor:pointer}
+#coordinateModal .sum3-more i{width:10px;font-size:10px}
+#coordinateModal .sum3-switch{display:inline-flex;align-items:center;gap:8px;color:var(--m-text-2)!important;font-size:12px!important;cursor:pointer;white-space:nowrap}
+#coordinateModal .sum3-switch input{position:absolute;opacity:0;pointer-events:none}
+#coordinateModal .sum3-switch i{position:relative;width:32px;height:18px;border-radius:99px;background:#cbd9e4;transition:.18s}
+#coordinateModal .sum3-switch i:after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.18s}
+#coordinateModal .sum3-switch input:checked+i{background:#1688d4}
+#coordinateModal .sum3-switch input:checked+i:after{transform:translateX(14px)}
+#coordinateModal .sum3-switch input:focus-visible+i{outline:2px solid #ff9d19;outline-offset:2px}
+#coordinateModal .sum3-detail{margin-top:8px;padding:10px 12px;border-radius:10px;background:#f4f6f9}
+#coordinateModal .sum3-detail[hidden]{display:none}
+#coordinateModal .sum3-detail .popup-table{width:100%;margin:0 0 6px;font-size:12px}
+#coordinateModal .sum3-detail .popup-table th{width:42%;font-weight:500;color:var(--m-text-2)!important;background:transparent!important}
+#coordinateModal .sum3-detail .popup-table td{overflow-wrap:anywhere;background:transparent!important}
+#coordinateModal .sum3-legal{margin-bottom:8px;color:var(--m-text-2)!important;font-size:12px;line-height:1.35}
+#coordinateModal .sum3-legal span{display:block;color:var(--m-text-3)!important;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+#coordinateModal .sum3-note{margin:0 0 6px;color:var(--m-text-2)!important;font-size:12px;line-height:1.4}
+#coordinateModal .sum3-feat{margin:6px 0 2px;color:var(--m-text-3)!important;font-size:11px;font-weight:600;text-transform:uppercase}
+#coordinateModal .sum3-out{margin-top:2px;border-top:1px solid var(--m-sep);padding-top:8px}
+#coordinateModal .sum3-out summary{cursor:pointer;color:var(--m-text-2)!important;font-size:12.5px;font-weight:600;padding:4px 0}
+#coordinateModal .sum3-outrow{padding:7px 0 0 14px}
+#coordinateModal .sum3-outrow .sum3-main{font-size:12.5px!important;font-weight:500!important;color:var(--m-text-2)!important}
+#coordinateModal .sum3-fail{display:inline-block;margin-top:3px;padding:2px 7px;border-radius:99px;background:#fdecea;color:#b42318!important;font-size:11px}
+#coordinateModal .sum3-raw{margin:0 0 8px}#coordinateModal .sum3-raw summary{cursor:pointer;color:var(--m-accent)!important;font-size:12px;font-weight:600;padding:2px 0 6px}
 </style>
 </head>
 <body>
@@ -882,22 +912,37 @@
       function summarySubjectArea(){if(summaryAreaCache!==null)return summaryAreaCache;var total=0;(function walk(g){if(!g)return;if(g.type==='FeatureCollection')(g.features||[]).forEach(walk);else if(g.type==='Feature'){if(g.geometry&&(g.geometry.type==='Polygon'||g.geometry.type==='MultiPolygon'))total+=featureAreaInfo(g).area}else if(g.type==='Polygon'||g.type==='MultiPolygon')total+=geometryArea(g)})(reportGeometry);summaryAreaCache=total;return total}
       function sumArea(a){return a>=10000?(a/10000).toLocaleString('id-ID',{maximumFractionDigits:2})+' ha':Math.round(a).toLocaleString('id-ID')+' m²'}
       function sumPct(a){var base=summarySubjectArea();if(!base||!a)return'';var v=Math.min(100,a/base*100);return(v<0.1?'<0,1':v.toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1}))+'%'}
+      var sumOpen=Object.create(null);
+      function sumLayerChecked(index){var input=results.querySelector('[data-analysis-layer-toggle="'+index+'"]');return!!(input&&input.checked)}
+      function sumActions(item,label){var idx=item.def.index,open=!!sumOpen[idx];return'<div class="sum3-acts"><button type="button" class="sum3-more" data-sum-detail="'+idx+'" aria-expanded="'+open+'"><i class="fas fa-chevron-'+(open?'down':'right')+'" aria-hidden="true"></i>'+(open?'Tutup rincian':safe(label))+'</button><label class="sum3-switch"><span>Tampilkan di peta</span><input type="checkbox" data-sum-layer="'+idx+'"'+(sumLayerChecked(idx)?' checked':'')+'><i aria-hidden="true"></i></label></div><div class="sum3-detail"'+(open?'':' hidden')+'>'+sumDetailHtml(item)+'</div>'}
+      function sumDetailHtml(item){var def=item.def,out='',legal=splitLayerName(def.name).legal;
+        if(legal&&!/^[A-Z0-9]{2,8}$/.test(legal))out+='<div class="sum3-legal"><span>Dasar hukum</span>'+safe(legal)+'</div>';
+        if(def.remoteBig||def.index===0){var villages=item.hits||[];villages.forEach(function(feature,i){var p=feature.properties||{};out+=(villages.length>1?'<div class="sum3-feat">'+safe(niceCase(p.WADMKD||('Desa '+(i+1))))+'</div>':'')+adminSummary(feature)+(p.REMARK?'<p class="sum3-note">'+safe(p.REMARK)+'</p>':'')+'<details class="sum3-raw"><summary>Atribut lengkap</summary>'+popup(def,feature)+'</details>'});return out||'<p class="sum3-note">Atribut desa tidak tersedia.</p>'}
+        var features=(polygonMode?item.displayFeatures:item.hits)||[];
+        if(polygonMode)out+='<p class="sum3-note">≈ Luas beririsan '+safe(formatArea(item.polygonTotal||0))+' • '+features.length.toLocaleString('id-ID')+' fitur sumber beririsan</p>';
+        features.slice(0,5).forEach(function(feature,i){out+=(features.length>1?'<div class="sum3-feat">Fitur '+(i+1)+'</div>':'')+popup(def,feature)});
+        if(features.length>5)out+='<p class="sum3-note">+'+(features.length-5).toLocaleString('id-ID')+' fitur lain.</p>';
+        if(def.index===8)out+='<p class="sum3-note">Hasil Verifikasi Usulan LP2B, belum merupakan penetapan. Sumber: Kementerian ATR/BPN &amp; Pemprov NTB, 6 Okt 2026.</p>';
+        return out}
+      function sumOutHtml(list,failed){if(!list.length&&!failed.length)return'';var open=!!sumOpen.out;
+        return'<details class="sum3-out"'+(open?' open':'')+'><summary>'+(list.length+failed.length)+' layer '+(polygonMode?'tidak beririsan dengan bidang':'tidak mencakup lokasi ini')+'</summary>'+list.map(function(item){return'<div class="sum3-outrow">'+summaryLayerNameHtml(item.def)+'</div>'}).join('')+failed.map(function(item){return'<div class="sum3-outrow">'+summaryLayerNameHtml(item.def)+'<span class="sum3-fail">Gagal diperiksa</span></div>'}).join('')+'</details>'}
       function summaryBlocks(inside){var out='',meta='',adminItem=inside.filter(function(item){return item.def.remoteBig||item.def.index===0})[0],base=polygonMode?summarySubjectArea():0;
         if(adminItem){var seenPlace={},places=[];(adminItem.hits||[]).forEach(function(f){var p=f.properties||{};if(!p.WADMKD)return;var key=[p.WADMKD,p.WADMKC,p.WADMKK].join('|');if(seenPlace[key])return;seenPlace[key]=1;places.push('<b>'+safe(niceCase(p.WADMKD))+'</b><small>'+safe([p.WADMKC?'Kec. '+niceCase(p.WADMKC):'',p.WADMKK?niceCase(p.WADMKK):''].filter(Boolean).join(' · '))+'</small>')});if(!places.length){var c=itemCategory(adminItem);if(c)places=['<b>'+safe(c)+'</b>']}meta+='<div class="sum3-meta-item"><span class="sum3-label">Desa/Kelurahan</span>'+(places.join('')||'<b>—</b>')+'</div>'}
         if(base){var areaText=String(formatArea(base)),areaMatch=areaText.match(/^(.*?)\s*\((.*)\)$/);meta+='<div class="sum3-meta-item"><span class="sum3-label">Luas bidang</span><b class="nowrap">'+safe(areaMatch?areaMatch[1]:areaText)+'</b>'+(areaMatch?'<small class="nowrap">'+safe(areaMatch[2])+'</small>':'')+'</div>'}
-        if(meta)out+='<div class="sum3-meta">'+meta+'</div>';
+        if(meta)out+='<div class="sum3-meta">'+meta+'</div>'+(adminItem?sumActions(adminItem,'Rincian desa'):'');
         inside.filter(function(item){return item!==adminItem}).forEach(function(item){var name=summaryLayerNameHtml(item.def),parts=summaryLayerNameHtml(item.def,true);
           if(polygonMode){var cats=Object.keys(item.categories||{}).filter(function(n){return n!=='Tanpa keterangan'}).sort(function(a,b){return item.categories[b]-item.categories[a]}),total=item.polygonTotal||0;
-            out+='<section class="sum3-layer sum3-area"><div class="sum3-row sum3-head"><div class="sum3-name">'+parts.main+'</div><div class="sum3-num">'+safe(sumArea(total))+'</div><div class="sum3-pct">'+safe(sumPct(total))+'</div>'+(parts.sub?'<div class="sum3-subrow">'+parts.sub+'</div>':'')+'</div>'+cats.map(function(cat){var a=item.categories[cat];return'<div class="sum3-row sum3-cat"><div class="sum3-catname">'+safe(niceCase(cat))+'</div><div class="sum3-num">'+safe(sumArea(a))+'</div><div class="sum3-pct">'+safe(sumPct(a))+'</div></div>'}).join('')+'</section>'}
+            out+='<section class="sum3-layer sum3-area"><div class="sum3-row sum3-head"><div class="sum3-name">'+parts.main+'</div><div class="sum3-num">'+safe(sumArea(total))+'</div><div class="sum3-pct">'+safe(sumPct(total))+'</div>'+(parts.sub?'<div class="sum3-subrow">'+parts.sub+'</div>':'')+'</div>'+cats.map(function(cat){var a=item.categories[cat];return'<div class="sum3-row sum3-cat"><div class="sum3-catname">'+safe(niceCase(cat))+'</div><div class="sum3-num">'+safe(sumArea(a))+'</div><div class="sum3-pct">'+safe(sumPct(a))+'</div></div>'}).join('')+sumActions(item,'Rincian')+'</section>'}
           else{var field=legendField(item.def),values=[];(item.hits||[]).forEach(function(f){var v=(f.properties||{})[field];if(v!=null&&String(v).trim()!==''){v=niceCase(String(v));if(values.indexOf(v)<0)values.push(v)}});
-            out+='<section class="sum3-layer"><div class="sum3-name">'+name+'</div>'+(values.length?values:['Lokasi berada di dalam layer ini']).map(function(v){return'<div class="sum3-catname">'+safe(v)+'</div>'}).join('')+'</section>'}
+            out+='<section class="sum3-layer"><div class="sum3-name">'+name+'</div>'+(values.length?values:['Lokasi berada di dalam layer ini']).map(function(v){return'<div class="sum3-catname">'+safe(v)+'</div>'}).join('')+sumActions(item,'Rincian')+'</section>'}
         });
         return'<div class="sum3">'+out+'</div>'}
       function renderAnalysisSummary(){if(token!==analysisToken)return;var items=analysisDefs.map(function(def){return checked[def.index]}).filter(function(item){return item&&!item.skipped}),inside=items.filter(function(item){return!item.error&&isIn(item)}),failed=items.filter(function(item){return item.error}),outside=items.length-inside.length-failed.length,pending=Math.max(0,relevantTotal-completed),flags=inside.filter(function(item){return CONSTRAINT_LAYERS[item.def.index]}).map(function(item){return CONSTRAINT_LAYERS[item.def.index]}),html='';
         if(flags.length)html+='<div class="analysis-alert" role="note"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i><div><strong>'+(polygonMode?'Bidang':'Lokasi')+' beririsan dengan '+safe(flags.join(', '))+'</strong><span>Pemanfaatan ruang di sini terikat ketentuan khusus perlindungan lahan/izin. Konfirmasikan kepada instansi berwenang.</span></div></div>';
         if(inside.some(function(item){return item.def.index===8}))html+='<div class="analysis-alert analysis-note" role="note"><i class="fas fa-info-circle" aria-hidden="true"></i><div><strong>'+(polygonMode?'Bidang':'Lokasi')+' berada dalam LP2B Hasil Verifikasi Usulan tahun 2026</strong><span>Belum merupakan penetapan; menunggu Keputusan Bupati/Wali Kota. Untuk rencana pemanfaatan, konfirmasikan ke Pemda setempat.</span></div></div>';
-        html+='<div class="analysis-summary"><div class="analysis-summary-head"><strong>Ringkasan hasil</strong><span>'+(pending?'<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> memeriksa '+pending+' layer…':inside.length+' masuk • '+outside+' tidak'+(failed.length?' • '+failed.length+' gagal':''))+'</span></div>';
+        html+='<div class="analysis-summary"><div class="analysis-summary-head"><strong>Hasil analisis</strong><span>'+(pending?'<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> memeriksa '+pending+' layer…':inside.length+' masuk • '+outside+' tidak'+(failed.length?' • '+failed.length+' gagal':''))+'</span></div>';
         html+=inside.length?summaryBlocks(inside):(pending?'':'<p class="sum-empty">Tidak ada layer yang '+(polygonMode?'beririsan dengan bidang ini.':'mencakup lokasi ini.')+'</p>');
+        if(!pending)html+=sumOutHtml(items.filter(function(item){return!item.error&&!isIn(item)}),failed);
         summaryBox.innerHTML=html+'</div>'}
       function attributeDetails(features){var rows=(features||[]).slice(0,5).map(function(feature){return popup(feature.__def||{},feature)}).join('');return rows?'<details class="analysis-attributes"><summary>Lihat detail atribut</summary>'+rows+'</details>':''}
       function adminSummary(feature){var props=feature.properties||{};return'<table class="popup-table"><tr><th>Desa/Kelurahan</th><td>'+safe(props.WADMKD||'—')+'</td></tr><tr><th>Kecamatan</th><td>'+safe(props.WADMKC||'—')+'</td></tr><tr><th>Kabupaten/Kota</th><td>'+safe(props.WADMKK||'—')+'</td></tr><tr><th>Provinsi</th><td>'+safe(props.WADMPR||'Nusa Tenggara Barat')+'</td></tr></table>'}
@@ -918,6 +963,9 @@
         if(card)card.dataset.error=item.error?'1':'0';renderAnalysisSummary();
       }
       var adminFeatures=[],adminScopeKnown=false;
+      summaryBox.onclick=function(event){var button=event.target.closest('[data-sum-detail]');if(!button)return;var idx=button.getAttribute('data-sum-detail'),open=!sumOpen[idx],panel=button.parentNode.nextElementSibling;sumOpen[idx]=open;if(panel)panel.hidden=!open;button.setAttribute('aria-expanded',String(open));button.innerHTML='<i class="fas fa-chevron-'+(open?'down':'right')+'" aria-hidden="true"></i>'+(open?'Tutup rincian':(idx==='0'?'Rincian desa':'Rincian'))};
+      summaryBox.addEventListener('toggle',function(event){if(event.target.classList&&event.target.classList.contains('sum3-out'))sumOpen.out=event.target.open},true);
+      summaryBox.onchange=function(event){var input=event.target.closest('[data-sum-layer]');if(!input)return;var target=results.querySelector('[data-analysis-layer-toggle="'+input.getAttribute('data-sum-layer')+'"]');if(!target){input.checked=false;toast('Layer ini belum dapat ditampilkan.');return}target.checked=input.checked;target.dispatchEvent(new Event('change',{bubbles:true}))};
       results.onchange=function(event){var input=event.target.closest('[data-analysis-layer-toggle]');if(!input)return;var index=Number(input.dataset.analysisLayerToggle);toggleAnalysisResultLayer(index,checked[index],input.checked,polygonMode);toast(input.checked?'Layer hasil ditampilkan pada peta.':'Layer hasil disembunyikan.')};
       function skipItem(def){showItem(def.index,{def:def,hits:[],polygonTotal:0,intersections:[],categories:{},error:false,skipped:true})}
       function inspectDef(def){
