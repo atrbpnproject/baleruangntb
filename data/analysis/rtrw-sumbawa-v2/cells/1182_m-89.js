@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-sumbawa|1182:-89"]=["1179:-89","1182:-89","1181:-89","1180:-89"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-sumbawa|1182:-89"]=["5904:-444","5908:-442","5909:-441","5910:-441","5910:-442","5911:-441","g2"];

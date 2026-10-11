@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-lombok-tengah|1162:-90"]=["1161:-90","1162:-90"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-lombok-tengah|1162:-90"]=["5808:-446","5810:-446","5811:-446","5812:-446","5813:-446","5813:-447","5814:-446","g13","g14","g46","g47"];

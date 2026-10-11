@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-selong-belanak|1161:-89"]=["1161:-89"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-selong-belanak|1161:-89"]=["5806:-443","5806:-444","5807:-442","5807:-443","5807:-444","5807:-445","5808:-442","5808:-443","5808:-444","5808:-445","5809:-443","g0","g1","g2"];

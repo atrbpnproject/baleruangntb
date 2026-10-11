@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-sumbawa|1175:-88"]=["1175:-88","1174:-88","1171:-90","1173:-91"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-sumbawa|1175:-88"]=["5866:-452","5873:-438","5874:-440","5875:-436","5875:-439","5875:-440","5876:-436","5876:-438","5877:-439","5878:-436","5879:-436","g0"];

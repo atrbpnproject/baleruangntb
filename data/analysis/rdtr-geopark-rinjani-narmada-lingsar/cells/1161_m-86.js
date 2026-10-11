@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-geopark-rinjani-narmada-lingsar|1161:-86"]=["1161:-86","1161:-87"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-geopark-rinjani-narmada-lingsar|1161:-86"]=["5808:-429","5809:-428","5809:-429","5809:-430","5809:-431","g0","g1","g2","g3"];

@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-kota-bima|1187:-86"]=["1187:-86"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-kota-bima|1187:-86"]=["5935:-426","5936:-426","5937:-426","5937:-427","5938:-426","5939:-426","5939:-427"];

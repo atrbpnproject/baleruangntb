@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["pippib|1177:-88"]=["1173:-91","1177:-89","1177:-88","1176:-88"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["pippib|1177:-88"]=["5884:-439","5885:-439","5886:-440","5887:-441","5888:-436","5889:-438","g7"];

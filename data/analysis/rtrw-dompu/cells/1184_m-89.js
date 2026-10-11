@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-dompu|1184:-89"]=["1178:-89","1181:-89","1177:-89","1176:-89"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-dompu|1184:-89"]=["5885:-442","g0","g4","g5","g6","g7"];

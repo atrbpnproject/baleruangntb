@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-sekotong|1160:-88"]=["1160:-88","1159:-88"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-sekotong|1160:-88"]=["5798:-438","5799:-438","5800:-437","5800:-438","5800:-439","5801:-437","5801:-438","5801:-439","5801:-440","5802:-437","5802:-438","5802:-439","5802:-440"];

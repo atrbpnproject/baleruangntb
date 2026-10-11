@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-senggigi-batulayar|1160:-86"]=["1160:-86"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-senggigi-batulayar|1160:-86"]=["5802:-426","5802:-427","5803:-426","5803:-427","5803:-428","5804:-426","5804:-427","5804:-428","g10","g11","g12","g13","g2","g3","g4","g5","g6","g7","g8","g9"];

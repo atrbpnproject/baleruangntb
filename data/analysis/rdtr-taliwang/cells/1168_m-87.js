@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-taliwang|1168:-87"]=["1168:-88","1168:-87","1167:-88","1167:-87"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-taliwang|1168:-87"]=["5839:-435","5839:-436","5842:-436","5842:-437","5843:-435","5843:-436"];

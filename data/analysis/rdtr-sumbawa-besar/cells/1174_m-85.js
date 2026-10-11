@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-sumbawa-besar|1174:-85"]=["1174:-85","1174:-86","1173:-85"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rdtr-sumbawa-besar|1174:-85"]=["5869:-424","5869:-425","5870:-424","5870:-425","5870:-426","5871:-424","5871:-425","5871:-426","g0","g1","g2","g3","g4","g5"];

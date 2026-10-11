@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-bima|1185:-84"]=["1182:-89","1181:-89","1178:-89","1177:-89","1182:-88","1185:-85","1185:-84"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["rtrw-bima|1185:-84"]=["5926:-424","5928:-416","g0","g1","g2","g3","g4","g5","g6","g7","g8"];

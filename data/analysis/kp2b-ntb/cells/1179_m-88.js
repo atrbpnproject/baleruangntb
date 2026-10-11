@@ -1,1 +1,1 @@
-window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["kp2b|1179:-88"]=["1177:-89","1176:-88","1169:-92","1179:-88","1179:-89"];
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["kp2b|1179:-88"]=["5897:-439","5897:-440","5898:-440","5898:-441","g56","g61","g64","g65"];

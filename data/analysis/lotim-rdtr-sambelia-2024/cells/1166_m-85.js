@@ -1,0 +1,1 @@
+window.__LONTAR_ANALYSIS_REFS__=window.__LONTAR_ANALYSIS_REFS__||{};window.__LONTAR_ANALYSIS_REFS__["lotim-rdtr-sambelia|1166:-85"]=["5832:-424","5832:-425","5833:-422","5833:-423","5833:-424","5833:-425","5834:-422","5834:-423","5834:-424"];
