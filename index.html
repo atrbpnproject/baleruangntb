@@ -985,7 +985,7 @@ el.addEventListener('click',hide);setTimeout(hide,MAX)})();
       function sumLayerChecked(index){var input=results.querySelector('[data-analysis-layer-toggle="'+index+'"]');return!!(input&&input.checked)}
       function sumActions(item,label){var idx=item.def.index,open=!!sumOpen[idx];return'<div class="sum3-acts"><button type="button" class="sum3-more" data-sum-detail="'+idx+'" aria-expanded="'+open+'"><i class="fas fa-chevron-'+(open?'down':'right')+'" aria-hidden="true"></i>'+(open?'Tutup rincian':safe(label))+'</button><label class="sum3-switch"><span>Tampilkan di peta</span><input type="checkbox" data-sum-layer="'+idx+'"'+(sumLayerChecked(idx)?' checked':'')+'><i aria-hidden="true"></i></label></div><div class="sum3-detail"'+(open?'':' hidden')+'>'+sumDetailHtml(item)+'</div>'}
       function sumDetailHtml(item){var def=item.def,out='',legal=splitLayerName(def.name).legal;
-        if(legal&&!/^[A-Z0-9]{2,8}$/.test(legal))out+='<div class="sum3-legal"><span>Dasar hukum</span>'+safe(legal)+(window.brRegulasiLink?window.brRegulasiLink(legal):'')+'</div>';
+        if(legal&&!/^[A-Z0-9]{2,8}$/.test(legal))out+='<div class="sum3-legal"><span>Dasar hukum</span>'+safe(legal)+(window.brRegulasiLink?window.brRegulasiLink(legal,def.index):'')+'</div>';else if(window.brRegulasiLink){var regLink=window.brRegulasiLink('',def.index);if(regLink)out+='<div class="sum3-legal"><span>Regulasi terkait</span>'+regLink+'</div>'}
         if(def.remoteBig||def.index===0){var villages=item.hits||[];villages.forEach(function(feature,i){var p=feature.properties||{};out+=(villages.length>1?'<div class="sum3-feat">'+safe(niceCase(p.WADMKD||('Desa '+(i+1))))+'</div>':'')+adminSummary(feature)+(p.REMARK?'<p class="sum3-note">'+safe(p.REMARK)+'</p>':'')+'<details class="sum3-raw"><summary>Atribut lengkap</summary>'+popup(def,feature)+'</details>'});return out||'<p class="sum3-note">Atribut desa tidak tersedia.</p>'}
         var features=(polygonMode?item.displayFeatures:item.hits)||[];
         if(polygonMode)out+='<p class="sum3-note">≈ Luas beririsan '+safe(formatArea(item.polygonTotal||0))+' • '+features.length.toLocaleString('id-ID')+' fitur sumber beririsan</p>';
@@ -1845,7 +1845,7 @@ html[data-theme] body .ux-search input:focus,html[data-theme] body .ux-search in
  .reg-chips button{padding:6px 14px}
 }
 </style>
-<script src="js/regulasi.js?v=20261012d"></script>
+<script src="js/regulasi.js?v=20261012e"></script>
 <script>
 (function(){
   var btn=document.getElementById('mobileInfoButton'),menu=document.getElementById('mobileInfoMenu');
