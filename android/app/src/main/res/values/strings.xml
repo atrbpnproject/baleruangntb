@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appName">Bale Ruang NTB</string>
+    <string name="launcherName">Bale Ruang</string>
+    <string name="launchUrl">https://atrbpnproject.github.io/baleruangntb/?source=apk</string>
+    <string name="assetStatements" translatable="false">[{ \"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": { \"namespace\": \"web\", \"site\": \"https://atrbpnproject.github.io\" } }]</string>
+</resources>

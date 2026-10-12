@@ -1,0 +1,34 @@
+name: Bangun APK Android (TWA)
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', '.github/workflows/android-apk.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - name: Bangun APK release (belum ditandatangani)
+        run: gradle -p android assembleRelease --no-daemon --stacktrace
+      - name: Simpan APK ke branch apk-build
+        run: |
+          mkdir out
+          cp android/app/build/outputs/apk/release/*.apk out/bale-ruang-ntb-unsigned.apk
+          echo "${GITHUB_SHA}" > out/SOURCE_COMMIT.txt
+          cd out
+          git init -q -b apk-build
+          git add .
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "APK dari ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" apk-build
+      - name: Simpan log bila gagal
+        if: failure()
+        run: |
+          mkdir -p fail && echo "build gagal ${GITHUB_SHA}" > fail/FAILED.txt
+          cd fail && git init -q -b apk-build && git add . && git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "GAGAL ${GITHUB_SHA}" && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" apk-build
