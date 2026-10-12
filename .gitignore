@@ -13,3 +13,8 @@ releases/
 *.qpj
 Thumbs.db
 .DS_Store
+
+# Kunci tanda tangan APK — jangan pernah di-commit
+*.jks
+*.keystore
+keystore-password.txt
