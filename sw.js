@@ -2,7 +2,7 @@
    - Halaman (navigasi): ambil dari jaringan dulu, cadangan dari cache bila offline.
    - Berkas tampilan (js/css/gambar/font): cepat dari cache, diperbarui di latar.
    - Data tata ruang (data/...) & peta dasar: selalu dari jaringan (tidak disimpan, agar memori HP tidak penuh). */
-var VERSION = 'bale-ruang-20261012';
+var VERSION = 'bale-ruang-20261012b';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/leaflet.css', 'js/leaflet.js',
   'images/bale-ruang-ntb-logo-v3.png', 'images/app/icon-192.png', 'images/app/icon-512.png'];
 self.addEventListener('install', function (event) {
@@ -20,9 +20,12 @@ self.addEventListener('fetch', function (event) {
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;            // peta dasar, layanan luar: biarkan browser
   if (url.pathname.indexOf('/data/') >= 0) return;           // data tata ruang: selalu dari jaringan
+  if (url.pathname.indexOf('/regulasi/') >= 0) return;       // dokumen regulasi (PDF): langsung dari jaringan
   if (req.mode === 'navigate') {
     event.respondWith(fetch(req).then(function (res) {
-      var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put('index.html', copy); }); return res;
+      var type = res.headers.get('content-type') || '';
+      if (res.ok && type.indexOf('text/html') >= 0) { var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put('index.html', copy); }); }
+      return res;
     }).catch(function () { return caches.match('index.html').then(function (r) { return r || caches.match('./'); }); }));
     return;
   }
