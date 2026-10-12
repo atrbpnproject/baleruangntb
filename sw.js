@@ -2,7 +2,7 @@
    - Halaman (navigasi): ambil dari jaringan dulu, cadangan dari cache bila offline.
    - Berkas tampilan (js/css/gambar/font): cepat dari cache, diperbarui di latar.
    - Data tata ruang (data/...) & peta dasar: selalu dari jaringan (tidak disimpan, agar memori HP tidak penuh). */
-var VERSION = 'bale-ruang-20261012f';
+var VERSION = 'bale-ruang-20261012g';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/leaflet.css', 'js/leaflet.js',
   'images/bale-ruang-ntb-logo-v3.png', 'images/app/icon-192.png', 'images/app/icon-512.png'];
 self.addEventListener('install', function (event) {
