@@ -139,30 +139,62 @@
   function fmtDate(d) { return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
   function fmtTime(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
   function tzName(d) { var o = -d.getTimezoneOffset() / 60; return o === 7 ? 'WIB' : o === 8 ? 'WITA' : o === 9 ? 'WIT' : 'UTC' + (o >= 0 ? '+' : '') + o; }
+  // Infografis JPG: foto utuh di atas + panel informasi di bawahnya (tinggi gambar bertambah, foto tidak ditimpa).
+  var FONT = '-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+  function fitText(g, t, maxW) { t = String(t || ''); if (g.measureText(t).width <= maxW) return t; while (t.length > 1 && g.measureText(t + '…').width > maxW) t = t.slice(0, -1); return t + '…'; }
+  function txt(g, t, x, y, size, weight, color, maxW, align) {
+    g.font = (weight || 400) + ' ' + size + 'px ' + FONT; g.fillStyle = color || '#fff'; g.textAlign = align || 'left';
+    g.fillText(maxW ? fitText(g, t, maxW) : t, x, y); g.textAlign = 'left';
+  }
+  function dial(g, cx, cy, r, heading) {
+    g.save();
+    g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+    for (var i = 0; i < 72; i++) {
+      var a = i * 5 * Math.PI / 180, major = i % 18 === 0, len = major ? 14 : (i % 6 === 0 ? 9 : 5);
+      g.strokeStyle = major ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)'; g.lineWidth = major ? 3 : 1.5;
+      g.beginPath(); g.moveTo(cx + Math.sin(a) * (r - 4), cy - Math.cos(a) * (r - 4)); g.lineTo(cx + Math.sin(a) * (r - 4 - len), cy - Math.cos(a) * (r - 4 - len)); g.stroke();
+    }
+    ['U', 'T', 'S', 'B'].forEach(function (l, i) { var a = i * Math.PI / 2; txt(g, l, cx + Math.sin(a) * (r - 34), cy - Math.cos(a) * (r - 34) + 8, 22, i ? 500 : 700, i ? 'rgba(255,255,255,.6)' : '#ff453a', 0, 'center'); });
+    if (heading != null) {
+      g.translate(cx, cy); g.rotate(heading * Math.PI / 180);
+      g.fillStyle = '#0a84ff'; g.beginPath(); g.moveTo(0, -(r - 54)); g.lineTo(11, 0); g.lineTo(-11, 0); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.moveTo(0, r - 54); g.lineTo(11, 0); g.lineTo(-11, 0); g.closePath(); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(0, 0, 6, 0, Math.PI * 2); g.fill();
+    }
+    g.restore();
+  }
   function stamp(p) {
-    var src = p.raw, c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
-    var g = c.getContext('2d'); g.drawImage(src, 0, 0);
-    var W = c.width, H = c.height, u = Math.max(13, Math.min(W, H) * 0.028), pad1 = u * 1.1;
-    var m = tm3(p.lon, p.lat, p.admin && p.admin.regency), place = p.admin ? placeLine(p.admin) : '';
-    var lines = [
-      { t: fmtDate(p.time) + '  ' + fmtTime(p.time) + ' ' + tzName(p.time), b: true },
-      { t: p.lat.toFixed(6) + ', ' + p.lon.toFixed(6) + (p.acc != null ? '   ± ' + Math.round(p.acc) + ' m' : '') },
-      { t: 'TM-3 ' + m.zone + '  X ' + idNum(m.x) + '  Y ' + idNum(m.y) + (p.heading != null ? '   ·   ' + dirName(p.heading) + ' ' + Math.round(p.heading) + '°' : '') }
-    ];
-    if (place) lines.push({ t: place });
-    var lh = u * 1.45, boxH = lines.length * lh + pad1 * 1.6;
-    var grd = g.createLinearGradient(0, H - boxH - u * 2, 0, H);
-    grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(0.35, 'rgba(0,0,0,.45)'); grd.addColorStop(1, 'rgba(0,0,0,.7)');
-    g.fillStyle = grd; g.fillRect(0, H - boxH - u * 2, W, boxH + u * 2);
-    g.textBaseline = 'alphabetic'; g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = u * 0.25;
-    var y = H - boxH + pad1 * 0.6 + u;
-    lines.forEach(function (l) { g.font = (l.b ? '600 ' : '400 ') + Math.round(u) + 'px -apple-system,"Segoe UI",Roboto,Arial,sans-serif'; g.fillStyle = l.b ? '#fff' : 'rgba(255,255,255,.92)'; g.fillText(l.t, pad1, y, W - pad1 * 2 - u * 7); y += lh; });
-    // merek di kanan bawah
-    var L = logo(), ls = u * 2.2, bx = W - pad1 - ls;
-    g.shadowBlur = 0;
-    if (L.complete && L.naturalWidth) g.drawImage(L, bx, H - pad1 - ls - u * 1.15, ls, ls);
-    g.font = '600 ' + Math.round(u * 0.72) + 'px -apple-system,"Segoe UI",Roboto,Arial,sans-serif'; g.fillStyle = '#fff'; g.textAlign = 'right';
-    g.fillText('Bale Ruang NTB', W - pad1, H - pad1 * 0.9); g.textAlign = 'left';
+    var W = 1440, src = p.raw, ph = Math.round(src.height * W / src.width), P = 600, pad = 72;
+    var c = document.createElement('canvas'); c.width = W; c.height = ph + P;
+    var g = c.getContext('2d');
+    g.drawImage(src, 0, 0, W, ph);
+    g.fillStyle = '#111214'; g.fillRect(0, ph, W, P);
+    var ad = p.admin || {}, m = tm3(p.lon, p.lat, ad.regency), y0 = ph;
+    // baris atas: tanggal & waktu | merek
+    txt(g, fmtDate(p.time), pad, y0 + 92, 30, 500, 'rgba(255,255,255,.72)');
+    txt(g, fmtTime(p.time) + ' ' + tzName(p.time), pad, y0 + 158, 58, 300, '#fff');
+    var L = logo(), lx = W - pad - 300;
+    if (L.complete && L.naturalWidth) g.drawImage(L, lx, y0 + 64, 76, 76);
+    txt(g, 'Bale Ruang NTB', lx + 92, y0 + 100, 30, 600, '#fff');
+    txt(g, 'Dokumentasi Geotag', lx + 92, y0 + 134, 22, 400, 'rgba(255,255,255,.55)');
+    g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(pad, y0 + 200, W - pad * 2, 2);
+    // kolom: lokasi | koordinat | arah
+    var cy = y0 + 262, cw = 430, c2 = pad + cw + 50, dialX = W - pad - 128, dialY = y0 + 372;
+    txt(g, 'LOKASI', pad, cy, 19, 600, 'rgba(255,255,255,.45)');
+    txt(g, ad.village ? 'Desa/Kel. ' + ad.village : 'Lokasi tidak diketahui', pad, cy + 50, 34, 600, '#fff', cw);
+    txt(g, ad.district ? 'Kec. ' + ad.district : '', pad, cy + 94, 26, 400, 'rgba(255,255,255,.75)', cw);
+    txt(g, ad.regency || ad.province || '', pad, cy + 132, 26, 400, 'rgba(255,255,255,.75)', cw);
+    txt(g, 'KOORDINAT', c2, cy, 19, 600, 'rgba(255,255,255,.45)');
+    txt(g, p.lat.toFixed(6) + ', ' + p.lon.toFixed(6), c2, cy + 50, 34, 500, '#fff', dialX - 150 - c2);
+    txt(g, dms(p.lat, 'LU', 'LS') + '  ' + dms(p.lon, 'BT', 'BB'), c2, cy + 94, 24, 400, 'rgba(255,255,255,.75)', dialX - 150 - c2);
+    txt(g, 'TM-3 ' + m.zone + '   X ' + idNum(m.x) + '   Y ' + idNum(m.y), c2, cy + 132, 24, 400, 'rgba(255,255,255,.75)', dialX - 150 - c2);
+    dial(g, dialX, dialY, 112, p.heading);
+    txt(g, p.heading != null ? Math.round(p.heading) + '° ' + dirName(p.heading) : 'Arah tidak tersedia', dialX, dialY + 158, 26, 600, p.heading != null ? '#fff' : 'rgba(255,255,255,.5)', 300, 'center');
+    // baris bawah: akurasi & sumber
+    var by = y0 + P - 62, col = p.acc == null ? '#8e8e93' : p.acc <= GOOD ? '#30d158' : p.acc <= FAIR ? '#ffd60a' : '#ff453a';
+    g.fillStyle = col; g.beginPath(); g.arc(pad + 9, by - 9, 9, 0, Math.PI * 2); g.fill();
+    txt(g, 'Akurasi ' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : 'tidak tercatat'), pad + 30, by, 26, 600, '#fff');
+    txt(g, p.source || '', pad + 260, by, 22, 400, 'rgba(255,255,255,.5)', dialX - 160 - pad - 260);
     p.stamped = c;
     return c;
   }
@@ -191,7 +223,7 @@
       + '<div class="gt-strip"></div>'
       + '<div class="gt-group gt-info"></div>'
       + '<div class="gt-group gt-form">'
-      + '<label><span>Judul</span><input class="gt-in-title" maxlength="80" placeholder="mis. Bidang tanah Bpk. Ahmad"></label>'
+      + '<label><span>Judul</span><input class="gt-in-title" maxlength="80" placeholder="Opsional, tampil sebagai judul laporan"></label>'
       + '<label><span>Keterangan</span><textarea class="gt-in-note" rows="2" maxlength="400" placeholder="Opsional"></textarea></label>'
       + '<label><span>Petugas</span><input class="gt-in-off" maxlength="60" placeholder="Opsional"></label></div>'
       + '<p class="gt-foot">Koordinat dikunci saat foto diambil. Akurasi di bawah ± ' + GOOD + ' m sangat baik; di atas ± ' + FAIR + ' m sebaiknya ulangi di area terbuka.</p></div>'
@@ -261,11 +293,11 @@
 
   function addPhoto(p) {
     p.admin = null;
-    stamp(p); p.thumb = thumbOf(p.stamped);
+    stamp(p); p.thumb = thumbOf(p.raw);
     S.photos.push(p);
     var idx = S.photos.length - 1;
     showReview(idx);
-    adminAt(p.lon, p.lat).then(function (a) { p.admin = a; stamp(p); p.thumb = thumbOf(p.stamped); if (S.view === 'rev') showReview(S.cur); });
+    adminAt(p.lon, p.lat).then(function (a) { p.admin = a; stamp(p); if (S.view === 'rev') showReview(S.cur); });
   }
   function thumbOf(c) { var t = document.createElement('canvas'), s = 160 / Math.max(c.width, c.height); t.width = Math.round(c.width * s); t.height = Math.round(c.height * s); t.getContext('2d').drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', .8); }
   function shoot() {
@@ -343,7 +375,7 @@
   }
   function savePhoto() {
     var p = S.photos[S.cur]; if (!p) return;
-    var name = 'BaleRuangNTB_Foto_' + fileStamp(p.time) + '.jpg';
+    var name = 'BaleRuangNTB_Geotag_' + fileStamp(p.time) + '.jpg';
     p.stamped.toBlob(function (blob) {
       var file = window.File ? new File([blob], name, { type: 'image/jpeg' }) : null;
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: name }).catch(function () {}); return; }
@@ -373,53 +405,64 @@
     }).catch(function () { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf"></i> Buat PDF'; toast('Laporan gagal disiapkan. Coba lagi.'); });
     void pending;
   }
+  function arrowSvg(h) { return '<svg class="arr" viewBox="0 0 10 10" style="transform:rotate(' + Math.round(h) + 'deg)"><path d="M5 .6 8.2 9 5 7.3 1.8 9z" fill="#007aff"/></svg>'; }
   function reportHtml() {
     var ps = S.photos, p0 = ps[0], ad = p0.admin || {}, n = ps.length;
     var title = $('.gt-in-title', S.el).value.trim(), note = $('.gt-in-note', S.el).value.trim(), officer = $('.gt-in-off', S.el).value.trim();
-    var maps = 'https://www.google.com/maps?q=' + p0.lat.toFixed(7) + ',' + p0.lon.toFixed(7);
+    var maps = 'https://www.google.com/maps/search/?api=1&query=' + p0.lat.toFixed(7) + ',' + p0.lon.toFixed(7);
     var base = location.origin + location.pathname.replace(/[^\/]*$/, ''), abs = function (u) { return new URL(u, location.href).href; };
     var fileName = 'BaleRuangNTB_Geotag_' + String(ad.village || 'Lokasi').replace(/[^A-Za-z0-9]+/g, '') + '_' + fileStamp(p0.time);
     var docNo = 'GT-' + fileStamp(p0.time).replace('_', '-');
+    var place = [ad.village && 'Desa/Kel. ' + ad.village, ad.district && 'Kec. ' + ad.district, ad.regency].filter(Boolean).join(', ');
+    var r0 = p0.raw.height / p0.raw.width, photoH = n === 1 ? Math.round(Math.min(112, 186 * r0)) : n === 2 ? 100 : 104;
     var photos = ps.map(function (p, k) {
-      return '<figure class="ph"><img src="' + p.stamped.toDataURL('image/jpeg', .9) + '" alt="Foto ' + (k + 1) + '">' + (n > 1 ? '<span class="no">' + (k + 1) + '</span>' : '') + '</figure>';
+      return '<figure class="ph"><img src="' + p.raw.toDataURL('image/jpeg', .9) + '" alt="Foto ' + (k + 1) + '">' + (n > 1 ? '<span class="no">' + (k + 1) + '</span>' : '') + '</figure>';
     }).join('');
-    var pts = ps.map(function (p, k) {
+    var rows = ps.map(function (p, k) {
       var m = tm3(p.lon, p.lat, (p.admin || {}).regency);
-      return '<tr>' + (n > 1 ? '<td class="n">' + (k + 1) + '</td>' : '') + '<td>' + p.lat.toFixed(6) + ', ' + p.lon.toFixed(6) + '<small>' + dms(p.lat, 'LU', 'LS') + ' ' + dms(p.lon, 'BT', 'BB') + '</small></td>'
-        + '<td>X ' + idNum(m.x) + '<br>Y ' + idNum(m.y) + '<small>TM-3 ' + m.zone + '</small></td>'
-        + '<td>' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : '–') + (p.heading != null ? '<small>' + dirName(p.heading) + ' ' + Math.round(p.heading) + '°</small>' : '') + '</td>'
-        + '<td>' + fmtTime(p.time) + '<small>' + p.time.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + '</small></td></tr>';
+      return '<tr><td class="n">' + (k + 1) + '</td>'
+        + '<td>' + p.lat.toFixed(6) + ', ' + p.lon.toFixed(6) + '<small>' + dms(p.lat, 'LU', 'LS') + ' · ' + dms(p.lon, 'BT', 'BB') + '</small></td>'
+        + '<td>X ' + idNum(m.x) + ' · Y ' + idNum(m.y) + '<small>TM-3 zona ' + m.zone + '</small></td>'
+        + '<td class="c">' + (p.heading != null ? arrowSvg(p.heading) + Math.round(p.heading) + '°<small>' + dirName(p.heading) + '</small>' : '–') + '</td>'
+        + '<td class="c">' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : '–') + '<small>' + (p.noGps ? 'posisi perangkat' : p.source.indexOf('EXIF') >= 0 ? 'data foto' : 'GPS') + '</small></td>'
+        + '<td class="c">' + fmtTime(p.time) + '<small>' + p.time.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + '</small></td></tr>';
     }).join('');
-    var srcs = ps.filter(function (p) { return p.noGps; }).length ? '<p class="warn">Sebagian koordinat diambil dari posisi perangkat karena foto tidak menyimpan data GPS.</p>' : '';
     var marks = JSON.stringify(ps.map(function (p) { return [p.lat, p.lon]; }));
-    var css = '@page{size:A4 portrait;margin:12mm 12mm 14mm}*{box-sizing:border-box}html,body{margin:0}body{color:#1d1d1f;font:9pt/1.4 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-      + '.hd{display:flex;align-items:center;justify-content:space-between;padding-bottom:3mm;border-bottom:.3mm solid #d2d2d7}.brand{display:flex;align-items:center;gap:2.5mm}.brand img{width:8mm;height:8mm}.brand b{display:block;font-size:10pt}.brand span{font-size:7pt;color:#6e6e73}.meta{text-align:right;font-size:7pt;color:#6e6e73;letter-spacing:.04em}.meta b{display:block;color:#1d1d1f;font-size:8pt;letter-spacing:.12em}'
-      + 'h1{margin:5mm 0 .8mm;font-size:16pt;font-weight:600;letter-spacing:-.01em}.sub{margin:0 0 4mm;color:#6e6e73;font-size:9pt}'
-      + '.photos{display:grid;gap:2.5mm;height:' + (n === 1 ? '118mm' : '122mm') + ';grid-template-columns:' + (n === 1 ? '1fr' : '1fr 1fr') + ';grid-template-rows:' + (n <= 2 ? '1fr' : '1fr 1fr') + '}'
-      + '.ph{position:relative;margin:0;border-radius:2.5mm;overflow:hidden;background:' + (n === 1 ? '#f2f2f4' : '#1c1c1e') + '}.ph img{width:100%;height:100%;object-fit:contain;display:block}.ph .no{position:absolute;left:2mm;top:2mm;width:5.5mm;height:5.5mm;border-radius:50%;background:#fff;color:#1d1d1f;font-size:8pt;font-weight:600;display:grid;place-items:center;box-shadow:0 .3mm 1mm rgba(0,0,0,.3)}'
-      + '.low{display:grid;grid-template-columns:62mm 1fr;gap:5mm;margin-top:5mm}.map{position:relative;height:62mm;border-radius:2.5mm;overflow:hidden;background:#e8e8ed}#map{position:absolute;inset:0}.north{position:absolute;z-index:500;right:2mm;top:2mm;width:6mm;height:6mm;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;font-size:6.5pt;font-weight:700}'
-      + '.lbl{margin:0 0 1.2mm;color:#6e6e73;font-size:6.8pt;font-weight:600;letter-spacing:.08em;text-transform:uppercase}.kv{display:grid;grid-template-columns:26mm 1fr;gap:.8mm 3mm;margin:0 0 3.5mm}.kv span{color:#6e6e73}.kv b{font-weight:500}'
-      + 'table{width:100%;border-collapse:collapse;font-size:8pt}th{text-align:left;font-weight:500;color:#6e6e73;font-size:6.8pt;padding:0 2mm 1mm 0;border-bottom:.3mm solid #d2d2d7}td{vertical-align:top;padding:1.4mm 2mm 1.4mm 0;border-bottom:.2mm solid #e5e5ea;font-variant-numeric:tabular-nums}td small{display:block;color:#8a8a8e;font-size:6.6pt}td.n{font-weight:600;width:4mm}'
-      + '.qr{display:flex;align-items:center;gap:3mm;margin-top:3.5mm}.qr svg{width:19mm;height:19mm;flex:0 0 19mm}.qr p{margin:0;color:#6e6e73;font-size:7pt}.qr p b{display:block;color:#1d1d1f;font-size:8pt;font-weight:600}'
-      + '.note{margin-top:4mm;padding:2.5mm 3mm;border-radius:2mm;background:#f5f5f7;font-size:8.5pt;white-space:pre-wrap}.warn{margin:2mm 0 0;color:#b25000;font-size:7pt}'
-      + '.page{display:flex;flex-direction:column;height:270mm}.ft{margin-top:auto;padding-top:2.5mm;border-top:.2mm solid #e5e5ea;display:flex;justify-content:space-between;color:#8a8a8e;font-size:6.8pt}.ft a{color:#8a8a8e;text-decoration:none}'
-      + '.mk{width:5mm;height:5mm;margin:-2.5mm 0 0 -2.5mm;border-radius:50%;background:#007aff;border:.5mm solid #fff;color:#fff;font:600 6.5pt/4mm Arial;text-align:center;box-shadow:0 .3mm 1mm rgba(0,0,0,.45)}.leaflet-control-attribution{display:none}.leaflet-control-scale-line{font-size:6pt;padding:0 1mm}@media screen{body{max-width:186mm;margin:8mm auto}}';
+    var css = '@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box}html,body{margin:0}body{color:#1d1d1f;font:8.6pt/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+      + '.page{display:flex;flex-direction:column;height:272mm}'
+      + '.hd{display:flex;align-items:center;justify-content:space-between;padding-bottom:3mm;border-bottom:.25mm solid #d2d2d7}.brand{display:flex;align-items:center;gap:2.6mm}.brand img{width:8.5mm;height:8.5mm}.brand b{display:block;font-size:10pt;font-weight:600}.brand span{color:#86868b;font-size:7pt}'
+      + '.meta{text-align:right;color:#86868b;font-size:7pt}.meta b{display:block;color:#1d1d1f;font-size:7.6pt;font-weight:600;letter-spacing:.14em}'
+      + '.tt{display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;margin:5mm 0 4mm}h1{margin:0;font-size:15pt;font-weight:600;letter-spacing:-.01em}.tt p{margin:1mm 0 0;color:#6e6e73;font-size:8.6pt}.date{text-align:right;white-space:nowrap}.date b{display:block;font-size:11pt;font-weight:500;font-variant-numeric:tabular-nums}.date span{color:#86868b;font-size:7.4pt}'
+      + '.photos{display:grid;gap:3mm;height:' + photoH + 'mm;grid-template-columns:' + (n === 1 ? '1fr' : '1fr 1fr') + ';grid-template-rows:' + (n <= 2 ? '1fr' : '1fr 1fr') + '}'
+      + '.ph{position:relative;margin:0;border-radius:2.5mm;overflow:hidden;background:#f5f5f7}.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:' + (n === 1 ? 'contain' : 'cover') + '}'
+      + '.ph .no{position:absolute;left:2mm;top:2mm;width:5.6mm;height:5.6mm;border-radius:50%;background:rgba(255,255,255,.94);font-size:7.6pt;font-weight:600;display:grid;place-items:center;box-shadow:0 .2mm .8mm rgba(0,0,0,.25)}'
+      + '.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:4mm;height:54mm}'
+      + '.card{position:relative;border:.25mm solid #e5e5ea;border-radius:2.5mm;padding:3.2mm 3.6mm;overflow:hidden}.card h3{margin:0 0 2.4mm;color:#86868b;font-size:6.6pt;font-weight:600;letter-spacing:.1em;text-transform:uppercase}'
+      + '.mapc{padding:0}#map{position:absolute;inset:0}.north{position:absolute;z-index:500;right:2mm;top:2mm;width:6mm;height:6mm;border-radius:50%;background:rgba(255,255,255,.95);display:grid;place-items:center;font-size:6.5pt;font-weight:700;box-shadow:0 .2mm .6mm rgba(0,0,0,.25)}'
+      + '.kv{display:grid;grid-template-columns:auto 1fr;gap:1.3mm 3mm}.kv span{color:#86868b}.kv b{font-weight:500;text-align:right}'
+      + '.qrc{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;text-decoration:none;color:inherit}.qrc svg{width:27mm;height:27mm}.qrc b{margin-top:2.2mm;font-size:8pt;font-weight:600;color:#007aff}.qrc span{margin-top:.6mm;color:#86868b;font-size:6.8pt}'
+      + 'table{width:100%;margin-top:4mm;border-collapse:collapse;font-size:8pt;font-variant-numeric:tabular-nums}th{padding:0 2mm 1.2mm;color:#86868b;font-size:6.6pt;font-weight:600;letter-spacing:.08em;text-transform:uppercase;text-align:left;border-bottom:.25mm solid #d2d2d7}th.c,td.c{text-align:center}'
+      + 'td{padding:1.6mm 2mm;border-bottom:.2mm solid #ececf0;vertical-align:top}td small{display:block;color:#86868b;font-size:6.6pt}td.n{width:6mm;font-weight:600;color:#86868b}.arr{width:2.6mm;height:2.6mm;margin-right:1mm;vertical-align:-.3mm}'
+      + '.note{margin-top:4mm;padding:2.8mm 3.6mm;border-radius:2.5mm;background:#f5f5f7}.note h3{margin:0 0 1mm;color:#86868b;font-size:6.6pt;font-weight:600;letter-spacing:.1em;text-transform:uppercase}.note p{margin:0;white-space:pre-wrap}'
+      + '.ft{margin-top:auto;padding-top:2.6mm;border-top:.25mm solid #e5e5ea;display:flex;justify-content:space-between;color:#86868b;font-size:6.8pt}.ft a{color:#86868b;text-decoration:none}'
+      + '.mk{width:5mm;height:5mm;margin:-2.5mm 0 0 -2.5mm;border-radius:50%;background:#007aff;border:.5mm solid #fff;color:#fff;font:600 6.4pt/4mm Arial;text-align:center;box-shadow:0 .3mm 1mm rgba(0,0,0,.45)}.leaflet-control-attribution{display:none}.leaflet-control-scale-line{font-size:6pt;padding:0 1mm}'
+      + '@media screen{body{background:#e5e5ea}.page{width:186mm;margin:8mm auto;padding:0;background:#fff;box-shadow:0 0 0 12mm #fff}}';
     return '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>' + esc(fileName) + '</title><link rel="stylesheet" href="' + abs('css/leaflet.css') + '"><style>' + css + '</style></head><body><div class="page">'
-      + '<header class="hd"><div class="brand"><img src="' + abs('images/bale-ruang-ntb-logo-v3.png') + '" alt=""><div><b>Bale Ruang NTB</b><span>Satu Tempat, Seluruh Informasi Ruang</span></div></div><div class="meta"><b>DOKUMENTASI GEOTAG</b>' + esc(docNo) + '</div></header>'
-      + '<h1>' + esc(title || 'Dokumentasi Lapangan') + '</h1><p class="sub">' + esc([ad.village && 'Desa/Kel. ' + ad.village, ad.district && 'Kec. ' + ad.district, ad.regency, ad.province].filter(Boolean).join(', ') || 'Lokasi pada koordinat di bawah') + ' · ' + esc(fmtDate(p0.time)) + '</p>'
+      + '<header class="hd"><div class="brand"><img src="' + abs('images/bale-ruang-ntb-logo-v3.png') + '" alt=""><div><b>Bale Ruang NTB</b><span>Satu Tempat, Seluruh Informasi Ruang</span></div></div><div class="meta"><b>DOKUMENTASI GEOTAG</b>No. ' + esc(docNo) + '</div></header>'
+      + '<section class="tt"><div><h1>' + esc(title || 'Dokumentasi Geotag') + '</h1><p>' + esc(place || 'Lokasi pada koordinat di bawah') + '</p></div><div class="date"><b>' + fmtTime(p0.time) + ' ' + tzName(p0.time) + '</b><span>' + esc(fmtDate(p0.time)) + '</span></div></section>'
       + '<section class="photos">' + photos + '</section>'
-      + '<section class="low"><div class="map"><div id="map"></div><span class="north">U</span></div><div>'
-      + '<p class="lbl">Lokasi</p><div class="kv"><span>Desa/Kelurahan</span><b>' + esc(ad.village || '–') + '</b><span>Kecamatan</span><b>' + esc(ad.district || '–') + '</b><span>Kabupaten/Kota</span><b>' + esc(ad.regency || '–') + '</b><span>Provinsi</span><b>' + esc(ad.province || '–') + '</b></div>'
-      + '<p class="lbl">Koordinat</p><table><thead><tr>' + (n > 1 ? '<th></th>' : '') + '<th>Lintang, Bujur (WGS84)</th><th>TM-3</th><th>Akurasi</th><th>Waktu</th></tr></thead><tbody>' + pts + '</tbody></table>' + srcs
-      + '<div class="qr">' + qrSvg(maps) + '<p><b>Buka lokasi di peta</b>Pindai kode ini untuk membuka titik ' + (n > 1 ? 'foto 1 ' : '') + 'di Google Maps.</p></div></div></section>'
-      + (note ? '<div class="note">' + esc(note) + '</div>' : '')
-      + '<footer class="ft"><span>' + (officer ? 'Petugas: ' + esc(officer) + ' · ' : '') + 'Dibuat ' + esc(new Date().toLocaleString('id-ID')) + '</span><a href="' + esc(base) + '">Bale Ruang NTB · ' + esc(base.replace(/^https?:\/\//, '')) + '</a></footer></div>'
+      + '<section class="cards"><div class="card mapc"><div id="map"></div><span class="north">U</span></div>'
+      + '<div class="card"><h3>Lokasi</h3><div class="kv"><span>Desa/Kel.</span><b>' + esc(ad.village || '–') + '</b><span>Kecamatan</span><b>' + esc(ad.district || '–') + '</b><span>Kab/Kota</span><b>' + esc(ad.regency || '–') + '</b><span>Provinsi</span><b>' + esc(ad.province || '–') + '</b><span>Jumlah foto</span><b>' + n + '</b></div></div>'
+      + '<a class="card qrc" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<b>Buka di Google Maps</b><span>Pindai atau klik' + (n > 1 ? ' · titik foto 1' : '') + '</span></a></section>'
+      + '<table><thead><tr><th></th><th>Lintang, Bujur (WGS84)</th><th>Koordinat TM-3</th><th class="c">Arah</th><th class="c">Akurasi</th><th class="c">Waktu</th></tr></thead><tbody>' + rows + '</tbody></table>'
+      + (note ? '<div class="note"><h3>Keterangan</h3><p>' + esc(note) + '</p></div>' : '')
+      + '<footer class="ft"><span>' + (officer ? 'Petugas: ' + esc(officer) + ' · ' : '') + 'Dibuat ' + esc(new Date().toLocaleString('id-ID')) + '</span><a href="' + esc(base) + '">' + esc(base.replace(/^https?:\/\//, '').replace(/\/$/, '')) + '</a></footer></div>'
       + '<script src="' + abs('js/leaflet.js') + '"><\/script><script>(function(){var pts=' + marks + ',name=' + JSON.stringify(fileName) + ';document.title=name;'
       + 'function go(){var done=false;function print(){if(done)return;done=true;setTimeout(function(){document.title=name;try{parent.document.title=name}catch(e){}window.focus();window.print()},600)}'
       + 'try{var map=L.map("map",{zoomControl:false,attributionControl:false,fadeAnimation:false,zoomAnimation:false}),t=L.tileLayer("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",{maxZoom:20,maxNativeZoom:20}).addTo(map);'
       + 'pts.forEach(function(p,i){L.marker(p,{icon:L.divIcon({className:"",html:"<div class=mk>"+(pts.length>1?i+1:"")+"</div>",iconSize:[0,0]})}).addTo(map)});'
-      + 'if(pts.length>1)map.fitBounds(pts,{padding:[18,18],maxZoom:19});else map.setView(pts[0],18);L.control.scale({imperial:false,position:"bottomleft"}).addTo(map);t.on("load",print)}catch(e){}'
-      + 'var imgs=[].slice.call(document.images),left=imgs.length;setTimeout(print,4500);}'
+      + 'if(pts.length>1)map.fitBounds(pts,{padding:[22,22],maxZoom:19});else map.setView(pts[0],18);L.control.scale({imperial:false,position:"bottomleft"}).addTo(map);t.on("load",print)}catch(e){}'
+      + 'setTimeout(print,4500);}'
       + 'if(document.readyState==="complete")go();else window.addEventListener("load",go)})();<\/script></body></html>';
   }
 
