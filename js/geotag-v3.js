@@ -84,16 +84,37 @@
   function compassStart() {
     if (compass.on) return; compass.on = true;
     function onOri(e) {
+      if (typeof e.beta === 'number' && typeof e.gamma === 'number') { compass.b = e.beta; compass.g = e.gamma; compass.t = Date.now(); }
       var h = null;
-      if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
-      else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
+      if (typeof e.webkitCompassHeading === 'number') {
+        h = e.webkitCompassHeading + ((screen.orientation && screen.orientation.angle) || window.orientation || 0);
+      } else if (e.absolute && typeof e.alpha === 'number') {
+        // Arah lensa belakang (sumbu -Z perangkat) dari matriks rotasi W3C: benar untuk posisi tegak maupun miring/lanskap.
+        var d = Math.PI / 180, a = e.alpha * d, b = (e.beta || 0) * d, g = (e.gamma || 0) * d;
+        var r13 = Math.cos(a) * Math.sin(g) + Math.sin(a) * Math.sin(b) * Math.cos(g),
+          r23 = Math.sin(a) * Math.sin(g) - Math.cos(a) * Math.sin(b) * Math.cos(g),
+          r33 = Math.cos(b) * Math.cos(g);
+        h = Math.abs(r33) > 0.94 ? 360 - e.alpha : Math.atan2(-r13, -r23) / d; // HP mendatar: pakai arah sisi atas
+      }
       if (h == null) return;
-      var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
-      compass.h = toTrue(h + so);
+      compass.h = toTrue(h);
     }
     var go = function () { window.addEventListener('deviceorientationabsolute', onOri, true); window.addEventListener('deviceorientation', onOri, true); };
     if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') DeviceOrientationEvent.requestPermission().then(function (s) { if (s === 'granted') go(); }).catch(function () {});
     else go();
+  }
+
+  // Posisi fisik HP dari sensor gravitasi: 0 = tegak, -90 = diputar berlawanan jarum jam (sisi kanan di atas), 90 = searah jarum jam.
+  function physicalTurn() {
+    if (compass.b == null || Date.now() - (compass.t || 0) > 3000) return 0;
+    var d = Math.PI / 180, ux = -Math.cos(compass.b * d) * Math.sin(compass.g * d), uy = Math.sin(compass.b * d);
+    if (Math.abs(ux) < 0.55 || Math.abs(ux) < Math.abs(uy) * 1.2) return 0;
+    return ux > 0 ? -90 : 90;
+  }
+  function rotateCanvas(c, deg) {
+    var r = document.createElement('canvas'); r.width = c.height; r.height = c.width;
+    var g = r.getContext('2d'); g.translate(r.width / 2, r.height / 2); g.rotate(deg * Math.PI / 180); g.drawImage(c, -c.width / 2, -c.height / 2);
+    return r;
   }
 
   // ---------- EXIF (foto dari galeri) ----------
@@ -341,6 +362,9 @@
     var v = $('.gt-video', S.el);
     if (!S.stream || !v.videoWidth) { toast('Kamera belum siap.'); return; }
     var raw = fitCanvas(v, v.videoWidth, v.videoHeight), time = new Date(), heading = compass.h;
+    // Layar terkunci potret tetapi HP dimiringkan (lanskap): putar hasil agar foto menjadi lanskap yang tegak.
+    var turn = physicalTurn(), screenPortrait = window.innerHeight >= window.innerWidth;
+    if (turn && screenPortrait && raw.height > raw.width) raw = rotateCanvas(raw, turn);
     $('.gt-cam', S.el).classList.add('flash'); setTimeout(function () { $('.gt-cam', S.el).classList.remove('flash'); }, 180);
     S.busy = true;
     waitFix(function (fix) {
