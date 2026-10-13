@@ -80,7 +80,7 @@
   function itemHtml(e) {
     var ty = TYPES[e.jenis] || TYPES.Nasional, ready = e.files.filter(fileReady), main = ready.filter(function (f) { return !f.url; })[0] || ready[0];
     var tip = e.nomor + ' tentang ' + e.tentang + (main && !main.url ? ' (' + metaOf(main) + ')' : '');
-    var head = '<span class="rg-ico ' + ty[0] + '"><i class="fas ' + ty[1] + '"></i></span><span class="rg-txt"><b>' + esc(shortTitle(e)) + '</b><small>' + esc(shortNomor(e.nomor)) + '</small></span>';
+    var head = '<span class="rg-ico" aria-hidden="true"></span><span class="rg-txt"><b>' + esc(shortTitle(e)) + '</b><small>' + esc(shortNomor(e.nomor)) + '</small></span>';
     var row = main
       ? '<a class="rg-main" href="' + esc(fileUrl(main)) + '" target="_blank" rel="noopener" title="' + esc(tip) + '">' + head
         + '<span class="rg-size">' + (main.url ? '' : esc(mb(main.mb))) + '</span><i class="fas ' + (main.url ? 'fa-external-link-alt' : 'fa-chevron-right') + ' rg-chev"></i></a>'
