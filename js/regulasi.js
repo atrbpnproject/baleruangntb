@@ -178,7 +178,7 @@
   function qlOpen(url, title, mbHint) {
     var w = qlBuild(), name = (title || 'dokumen').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 90) + '.pdf';
     w.querySelector('.ql-title').textContent = title; w.querySelector('.ql-name').textContent = title;
-    w.querySelector('.ql-track i').style.width = '0%'; w.querySelector('.ql-track').classList.remove('busy');
+    w.querySelector('.ql-track i').style.width = '0%'; w.querySelector('.ql-track').classList.remove('busy'); w.querySelector('.ql-frame').onload = null;
     w.querySelector('.ql-stat').textContent = 'Menghubungkan…'; w.querySelector('.ql-cancel').textContent = 'Batal';
     w.querySelector('.ql-tab').href = url; w.querySelector('.ql-dl').href = url; w.querySelector('.ql-dl').setAttribute('download', name);
     w.classList.remove('ready'); w.classList.add('open');
@@ -208,12 +208,18 @@
       qlBlobUrl = URL.createObjectURL(blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' }));
       w.querySelector('.ql-dl').href = qlBlobUrl; w.querySelector('.ql-tab').href = qlBlobUrl;
       if (canInline()) {
-        w.querySelector('.ql-stat').textContent = 'Membuka dokumen…';
-        w.querySelector('.ql-frame').src = qlBlobUrl;
-        setTimeout(function () { if (w.classList.contains('open')) w.classList.add('ready'); }, 250);
+        // Tetap tampilkan progres sampai penampil PDF selesai menyiapkan dokumen (dokumen besar butuh beberapa detik).
+        w.querySelector('.ql-stat').textContent = 'Menampilkan dokumen…';
+        w.querySelector('.ql-track').classList.add('busy');
+        var fr = w.querySelector('.ql-frame'), shown = false;
+        var reveal = function () { if (shown || !w.classList.contains('open')) return; shown = true; w.classList.add('ready'); };
+        fr.onload = function () { setTimeout(reveal, blob.size > 15e6 ? 1200 : 400); };
+        setTimeout(reveal, 15000);
+        fr.src = qlBlobUrl;
       } else {
         // Browser tanpa penampil PDF bawaan (HP): tampilkan halaman dengan PDF.js di dalam aplikasi.
         w.querySelector('.ql-stat').textContent = 'Menyiapkan halaman…';
+        w.querySelector('.ql-track').classList.add('busy');
         pjShow(blob, w).catch(function () { if (w.classList.contains('open')) { qlClose(); window.open(url, '_blank', 'noopener'); } });
       }
     }).catch(function (err) {
@@ -253,9 +259,8 @@
         pj.doc = doc;
         return doc.getPage(1).then(function (page) {
           pj.base = page.getViewport({ scale: 1 });
-          w.classList.add('pj');
+          w.classList.add('pj', 'ready');
           pjLayout(w);
-          w.classList.add('ready');
         });
       });
     });

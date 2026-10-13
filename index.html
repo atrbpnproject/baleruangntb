@@ -1868,8 +1868,8 @@ a.rg-main:hover{background:rgba(0,0,0,.035)}a.rg-main:active{background:rgba(0,0
 @keyframes qlBusy{0%{left:-35%}100%{left:100%}}
 .ql-stat{color:#6e6e73;font-size:12px;font-variant-numeric:tabular-nums;min-height:16px}
 .ql-cancel{margin-top:4px;height:30px;padding:0 18px;border:0;border-radius:8px;background:rgba(118,118,128,.14);color:#1d1d1f;font:inherit;font-size:13px;cursor:pointer}
-.ql-frame{flex:1;width:100%;border:0;background:#525659;display:none}
-.ql-shell.ready .ql-frame{display:block}
+.ql-frame{position:fixed;left:-10000px;top:0;width:900px;height:700px;border:0;background:#525659;visibility:hidden;pointer-events:none}
+.ql-shell.ready .ql-frame{position:static;flex:1;width:100%;height:auto;visibility:visible;pointer-events:auto}
 .ql-pages{position:relative;flex:1;display:none;overflow:auto;padding:8px;background:#e5e5e8;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .ql-shell.ready.pj .ql-pages{display:block}.ql-shell.pj .ql-frame{display:none!important}
 .ql-page{margin:0 auto 8px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18);position:relative}
@@ -1894,7 +1894,7 @@ a.rg-main:hover{background:rgba(0,0,0,.035)}a.rg-main:active{background:rgba(0,0
  .rg-txt b{font-size:14.5px}
 }
 </style>
-<script src="js/regulasi.js?v=20261013f"></script>
+<script src="js/regulasi.js?v=20261013h"></script>
 <script>
 (function(){
   var btn=document.getElementById('mobileInfoButton'),menu=document.getElementById('mobileInfoMenu');
