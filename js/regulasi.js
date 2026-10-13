@@ -82,11 +82,11 @@
     var tip = e.nomor + ' tentang ' + e.tentang + (main && !main.url ? ' (' + metaOf(main) + ')' : '');
     var head = '<span class="rg-ico" aria-hidden="true"></span><span class="rg-txt"><b>' + esc(shortTitle(e)) + '</b><small>' + esc(shortNomor(e.nomor)) + '</small></span>';
     var row = main
-      ? '<a class="rg-main" href="' + esc(fileUrl(main)) + '" target="_blank" rel="noopener" title="' + esc(tip) + '">' + head
+      ? '<a class="rg-main" href="' + esc(fileUrl(main)) + '" target="_blank" rel="noopener" title="' + esc(tip) + '"' + (main.url ? '' : ' data-pdf-title="' + esc(shortTitle(e) + ' — ' + shortNomor(e.nomor)) + '" data-pdf-mb="' + main.mb + '"') + '>' + head
         + '<span class="rg-size">' + (main.url ? '' : esc(mb(main.mb))) + '</span><i class="fas ' + (main.url ? 'fa-external-link-alt' : 'fa-chevron-right') + ' rg-chev"></i></a>'
       : '<div class="rg-main off">' + head + '<span class="rg-soon">' + esc(e.status || 'Belum tersedia') + '</span></div>';
     var extras = ready.filter(function (f) { return f !== main; }).map(function (f) {
-      return '<a class="rg-x" href="' + esc(fileUrl(f)) + '" target="_blank" rel="noopener">' + esc(f.label) + (f.url ? ' <i class="fas fa-external-link-alt"></i>' : ' <span>' + esc(mb(f.mb)) + '</span>') + '</a>';
+      return '<a class="rg-x" href="' + esc(fileUrl(f)) + '" target="_blank" rel="noopener"' + (f.url ? '' : ' data-pdf-title="' + esc(shortTitle(e) + ' — ' + f.label) + '" data-pdf-mb="' + f.mb + '"') + '>' + esc(f.label) + (f.url ? ' <i class="fas fa-external-link-alt"></i>' : ' <span>' + esc(mb(f.mb)) + '</span>') + '</a>';
     }).join('');
     var note = e.catatan ? '<span class="rg-note">' + esc(e.catatan) + '</span>' : '';
     return '<div class="rg-row' + (state.focus === e.id ? ' focus' : '') + '" id="reg-' + esc(e.id) + '">' + row
@@ -145,6 +145,94 @@
     if (id) setTimeout(function () { var el = document.getElementById('reg-' + id); if (el) el.scrollIntoView({ block: 'center' }); }, 60);
   }
   window.brOpenRegulasi = open;
+
+  // ===== Pratinjau PDF ala Quick Look: unduh dengan bilah progres, lalu tampilkan di dalam aplikasi =====
+  var ql = null, qlCtrl = null, qlBlobUrl = '';
+  function fmtMB(bytes) { var v = bytes / 1048576; return (v < 10 ? v.toFixed(1) : Math.round(v)).toString().replace('.', ',') + ' MB'; }
+  function qlBuild() {
+    if (ql) return ql;
+    ql = document.createElement('div');
+    ql.className = 'ql-shell'; ql.setAttribute('role', 'dialog'); ql.setAttribute('aria-modal', 'true');
+    ql.innerHTML = '<div class="ql-win"><div class="ql-bar"><button type="button" class="ql-close" aria-label="Tutup"><i class="fas fa-times"></i></button>'
+      + '<b class="ql-title"></b><span class="ql-acts"><a class="ql-btn ql-dl" download><i class="fas fa-download"></i><span>Unduh</span></a>'
+      + '<a class="ql-btn ql-tab" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i><span>Tab baru</span></a></span></div>'
+      + '<div class="ql-load"><span class="rg-ico ql-ico"></span><b class="ql-name"></b><div class="ql-track"><i></i></div><small class="ql-stat">Menyiapkan…</small>'
+      + '<button type="button" class="ql-cancel">Batal</button></div><iframe class="ql-frame" title="Pratinjau dokumen"></iframe></div>';
+    document.body.appendChild(ql);
+    ql.querySelector('.ql-close').addEventListener('click', qlClose);
+    ql.querySelector('.ql-cancel').addEventListener('click', qlClose);
+    ql.addEventListener('click', function (ev) { if (ev.target === ql) qlClose(); });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && ql.classList.contains('open')) qlClose(); });
+    return ql;
+  }
+  function qlClose() {
+    if (qlCtrl) { qlCtrl.abort(); qlCtrl = null; }
+    if (!ql) return;
+    ql.classList.remove('open', 'ready');
+    var fr = ql.querySelector('.ql-frame'); fr.removeAttribute('src');
+    if (qlBlobUrl) { var u = qlBlobUrl; qlBlobUrl = ''; setTimeout(function () { URL.revokeObjectURL(u); }, 60000); }
+  }
+  function canInline() { return navigator.pdfViewerEnabled === true || (navigator.pdfViewerEnabled === undefined && !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)); }
+  function qlOpen(url, title, mbHint) {
+    var w = qlBuild(), name = (title || 'dokumen').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 90) + '.pdf';
+    w.querySelector('.ql-title').textContent = title; w.querySelector('.ql-name').textContent = title;
+    w.querySelector('.ql-track i').style.width = '0%'; w.querySelector('.ql-track').classList.remove('busy');
+    w.querySelector('.ql-stat').textContent = 'Menghubungkan…'; w.querySelector('.ql-cancel').textContent = 'Batal';
+    w.querySelector('.ql-tab').href = url; w.querySelector('.ql-dl').href = url; w.querySelector('.ql-dl').setAttribute('download', name);
+    w.classList.remove('ready'); w.classList.add('open');
+    qlCtrl = window.AbortController ? new AbortController() : null;
+    var ctrl = qlCtrl, hint = (+mbHint || 0) * 1e6;
+    fetch(url, { signal: ctrl ? ctrl.signal : undefined }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var total = +res.headers.get('content-length') || hint, got = 0, parts = [], bar = w.querySelector('.ql-track i'), stat = w.querySelector('.ql-stat');
+      if (!res.body || !res.body.getReader) return res.blob();
+      if (!total) w.querySelector('.ql-track').classList.add('busy');
+      var reader = res.body.getReader();
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) return new Blob(parts, { type: 'application/pdf' });
+          parts.push(r.value); got += r.value.length;
+          if (total) { var pct = Math.min(99, Math.round(got / total * 100)); bar.style.width = pct + '%'; stat.textContent = 'Memuat ' + pct + '% · ' + fmtMB(got) + ' dari ' + fmtMB(total); }
+          else stat.textContent = 'Memuat ' + fmtMB(got) + '…';
+          return pump();
+        });
+      }
+      return pump();
+    }).then(function (blob) {
+      if (ctrl && ctrl.signal.aborted) return;
+      qlCtrl = null;
+      w.querySelector('.ql-track i').style.width = '100%';
+      if (qlBlobUrl) URL.revokeObjectURL(qlBlobUrl);
+      qlBlobUrl = URL.createObjectURL(blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' }));
+      w.querySelector('.ql-dl').href = qlBlobUrl; w.querySelector('.ql-tab').href = qlBlobUrl;
+      if (canInline()) {
+        w.querySelector('.ql-stat').textContent = 'Membuka dokumen…';
+        w.querySelector('.ql-frame').src = qlBlobUrl;
+        setTimeout(function () { if (w.classList.contains('open')) w.classList.add('ready'); }, 250);
+      } else {
+        // HP tanpa penampil PDF di halaman: simpan berkas, lalu dibuka oleh aplikasi PDF perangkat.
+        var a = document.createElement('a'); a.href = qlBlobUrl; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        w.querySelector('.ql-stat').textContent = 'Selesai. Dokumen tersimpan di folder Unduhan — ketuk notifikasi unduhan untuk membukanya.';
+        w.querySelector('.ql-cancel').textContent = 'Tutup';
+      }
+    }).catch(function (err) {
+      if (ctrl && ctrl.signal.aborted) return;
+      qlCtrl = null; qlClose();
+      window.open(url, '_blank', 'noopener'); // cadangan: buka langsung
+    });
+  }
+  window.brOpenPdf = qlOpen;
+  document.addEventListener('click', function (ev) {
+    var a = ev.target.closest && ev.target.closest('a[data-pdf-title]');
+    if (!a || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button > 0) return;
+    if (!window.fetch || !window.Blob || !window.URL || !URL.createObjectURL) return;
+    var u; try { u = new URL(a.href, location.href); } catch (e) { return; }
+    if (u.origin !== location.origin) return; // berkas di situs lain: biarkan browser
+    ev.preventDefault();
+    if (ql && ql.classList.contains('open')) qlClose();
+    qlOpen(u.href, a.getAttribute('data-pdf-title'), a.getAttribute('data-pdf-mb'));
+  });
+
 
   document.addEventListener('click', function (ev) {
     var t = ev.target.closest && ev.target.closest('[data-reg-open],[data-open-regulasi]');
