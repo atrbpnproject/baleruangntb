@@ -1809,30 +1809,42 @@ html[data-theme] body .ux-search input:focus,html[data-theme] body .ux-search in
 })();
 </script>
 <style id="brRegulasiCss">
-.reg-modal{width:min(640px,calc(100vw - 28px))!important}
-.reg-lead{margin:0 0 10px;color:#33475b;font-size:13px;line-height:1.5}
-.reg-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:4px 0 6px}
-.reg-search{flex:1 1 100%;display:flex;align-items:center;gap:8px;padding:0 12px;height:40px;border:1px solid #d6e1eb;border-radius:11px;background:#f6f9fc}
-.reg-search i{color:#7d93a8}#regulasiModal .reg-search input{flex:1;min-width:0;height:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;outline:none;font:inherit;font-size:14px;color:#1d2b3a}
-.reg-chips{display:flex;gap:6px}.reg-chips button{border:1px solid #d6e1eb;background:#fff;color:#33475b;border-radius:99px;padding:5px 13px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
-.reg-chips button.on{background:#0b3a66;border-color:#0b3a66;color:#fff}
-.reg-count{margin-left:auto;color:#7d93a8;font-size:12px}
-.reg-pulau{margin:14px 0 4px;color:#7d93a8;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
-.reg-group h4{margin:10px 0 6px;color:#0b3a66;font-size:14.5px}
-.reg-item{border:1px solid #e1e8ef;border-radius:12px;padding:10px 12px;margin:0 0 8px;background:#fff;transition:box-shadow .3s,border-color .3s}
-.reg-item.focus{border-color:#1688d4;box-shadow:0 0 0 3px rgba(22,136,212,.18)}
-.reg-head{display:flex;gap:8px;align-items:flex-start}.reg-head b{font-size:13.5px;color:#1d2b3a;line-height:1.35}
-.reg-badge{flex:0 0 auto;margin-top:1px;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:800;letter-spacing:.03em;background:#e6f2ec;color:#1a7f52}
-.reg-badge.rdtr{background:#efe9fb;color:#6a3fc0}.reg-badge.tematik{background:#fdf1dc;color:#9a5b00}.reg-badge.nasional{background:#e8eef6;color:#24507a}.reg-chips{flex-wrap:wrap}
-.reg-about{margin:4px 0 0;color:#4f6274;font-size:12.5px;line-height:1.45}
-.reg-note{margin:4px 0 0;color:#a14b00;font-size:11.5px}
-.reg-files{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.reg-file{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:10px;background:#eef6ff;border:1px solid #cfe1f5;color:#0b5aa6;text-decoration:none;font-size:12.5px;line-height:1.2}
-.reg-file i{font-size:15px;color:#d24a3a}.reg-file b{font-weight:700}.reg-file small{color:#5b6f83;font-size:11.5px}
-.reg-file:hover{background:#e2efff}
-.reg-file.off{background:#f4f6f9;border-color:#e4e8ee;color:#6b7c8c}.reg-file.off i{color:#9aa9b8}
-.reg-empty{color:#6b7c8c;text-align:center;padding:20px 0}
-.reg-foot{margin:12px 0 0;color:#7d93a8;font-size:11.5px;line-height:1.45}
+#regulasiModal .reg-modal{width:min(560px,calc(100vw - 28px))!important;height:min(760px,calc(100vh - 80px));max-height:none!important;display:flex;flex-direction:column;overflow:hidden!important;padding:0;background:#f2f2f7!important}
+#regulasiModal .modal-top{flex:0 0 auto;background:#f2f2f7!important;border-bottom:0!important}
+#regulasiModal .modal-top h2{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.rg-bar{flex:0 0 auto;padding:2px 16px 10px;display:grid;gap:9px;border-bottom:.5px solid rgba(60,60,67,.14)}
+.rg-search{display:flex;align-items:center;gap:7px;height:34px;padding:0 10px;border-radius:9px;background:rgba(118,118,128,.12);cursor:text}
+.rg-search i{color:#8a8a92;font-size:13px}
+#regulasiModal .rg-search input{flex:1;min-width:0;height:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;outline:none;font:inherit;font-size:14px;color:#1d1d1f}
+#regulasiModal .rg-search input::placeholder{color:#8a8a92}
+.rg-seg{display:flex;padding:2px;border-radius:9px;background:rgba(118,118,128,.12)}
+.rg-seg button{flex:1 1 0;min-width:0;height:28px;border:0;border-radius:7px;background:none;color:#1d1d1f;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s}
+.rg-seg button.on{background:#fff;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04)}
+#regulasiModal .rg-body{flex:1 1 auto;min-height:0;overflow:auto;padding:4px 16px 18px!important;background:#f2f2f7!important;text-align:left;-webkit-overflow-scrolling:touch}
+.rg-group{margin-top:16px}
+.rg-group h4{margin:0 0 6px 14px;color:#6e6e73;font-size:11.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.rg-card{background:#fff;border-radius:11px;overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.05)}
+.rg-row{position:relative;transition:background .6s}
+.rg-row+.rg-row:before{content:"";position:absolute;top:0;left:56px;right:0;border-top:.5px solid rgba(60,60,67,.16)}
+.rg-row.focus{background:rgba(0,122,255,.09)}
+.rg-main{display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 14px;color:inherit;text-decoration:none!important;-webkit-tap-highlight-color:transparent}
+a.rg-main:hover{background:rgba(0,0,0,.035)}a.rg-main:active{background:rgba(0,0,0,.07)}
+.rg-ico{flex:0 0 30px;height:30px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:13px}
+.t-rtrw{background:#34c759}.t-rdtr{background:#af52de}.t-tem{background:#ff9f0a}.t-nas{background:#007aff}
+.rg-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.rg-txt b{color:#1d1d1f;font-size:14px;font-weight:500;line-height:1.3}
+.rg-txt small{color:#8a8a92;font-size:12px;line-height:1.35}
+.rg-chev{flex:0 0 auto;color:#c4c4c7;font-size:12px}.rg-size{flex:0 0 auto;color:#8a8a92;font-size:12.5px;font-variant-numeric:tabular-nums}.rg-txt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rg-soon{flex:0 0 auto;color:#8a8a92;font-size:12px}
+.rg-main.off .rg-ico{opacity:.45}
+.rg-sub{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;padding:0 14px 10px 56px;margin-top:-4px}
+.rg-x{color:#007aff!important;font-size:12.5px;font-weight:500;text-decoration:none!important}
+.rg-x span{color:#8a8a92;font-weight:400}.rg-x i{font-size:10px}
+.rg-x:hover{text-decoration:underline!important}
+.rg-note{flex:1 1 100%;color:#8a8a92;font-size:11.5px;line-height:1.4}
+.rg-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:56px 20px;color:#8a8a92;text-align:center;font-size:13px}
+.rg-empty i{font-size:26px;color:#c4c4c7}.rg-empty b{color:#1d1d1f;font-size:15px;font-weight:600}
+.rg-foot{margin:18px 8px 0;color:#8a8a92;font-size:11.5px;line-height:1.5;text-align:center}
 .reg-link{display:inline-flex;align-items:center;gap:6px;margin:6px 0 0;padding:5px 10px;border:1px solid #cfe1f5;border-radius:99px;background:#eef6ff;color:#0b5aa6!important;font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0}
 .reg-link i{font-size:12px}
 .mobile-info-menu{display:none}
@@ -1841,11 +1853,13 @@ html[data-theme] body .ux-search input:focus,html[data-theme] body .ux-search in
  .mobile-info-menu.open{display:flex}
  .mobile-info-menu button{display:flex;align-items:center;gap:10px;padding:11px 12px;border:0;border-radius:10px;background:none;color:#1d2b3a;font:inherit;font-size:14px;text-align:left}
  .mobile-info-menu button:active{background:#eef3f8}.mobile-info-menu i{width:18px;color:#1688d4}
- .reg-modal{width:100%!important}
- .reg-chips button{padding:6px 14px}
+ #regulasiModal .reg-modal{width:100%!important;height:calc(100dvh - 120px)}
+ .rg-bar{padding:2px 12px 10px}#regulasiModal .rg-body{padding:4px 12px 18px!important}
+ .rg-seg button{font-size:12px}
+ .rg-txt b{font-size:14.5px}
 }
 </style>
-<script src="js/regulasi.js?v=20261012f"></script>
+<script src="js/regulasi.js?v=20261013b"></script>
 <script>
 (function(){
   var btn=document.getElementById('mobileInfoButton'),menu=document.getElementById('mobileInfoMenu');

@@ -29,49 +29,94 @@
   };
 
   var state = { q: '', jenis: 'Semua', focus: '' };
+  var TYPES = { RTRW: ['t-rtrw', 'fa-map'], RDTR: ['t-rdtr', 'fa-th-large'], Tematik: ['t-tem', 'fa-leaf'], Nasional: ['t-nas', 'fa-balance-scale'] };
+  // Judul ringkas (baris utama) dan nomor ringkas (baris kedua) agar daftar mudah dipindai.
+  function shortNomor(n) {
+    return String(n || '')
+      .replace(/^Peraturan Daerah (Provinsi NTB|Kabupaten [A-Za-z ]+?|Kota [A-Za-z ]+?) Nomor/, 'Perda No.')
+      .replace(/^Peraturan Bupati [A-Za-z ]+? Nomor/, 'Perbup No.')
+      .replace(/^Peraturan Wali Kota [A-Za-z ]+? Nomor/, 'Perwali No.')
+      .replace(/^Peraturan Pemerintah Nomor/, 'PP No.')
+      .replace(/^Peraturan Presiden Nomor/, 'Perpres No.')
+      .replace(/^Instruksi Presiden Nomor/, 'Inpres No.')
+      .replace(/^Undang-Undang Nomor/, 'UU No.')
+      .replace(/^Peraturan Menteri ATR\/Kepala BPN Nomor/, 'Permen ATR/BPN No.')
+      .replace(/^Keputusan Menteri ATR\/Kepala BPN Nomor/, 'Kepmen ATR/BPN No.')
+      .replace(/^Petunjuk Teknis Nomor/, 'Juknis No.');
+  }
+  var TITLE = {
+    'lsd-kepmen-1589-2021-ntb': 'Penetapan Peta LSD (termasuk NTB)',
+    'uu-41-2009-lp2b': 'Perlindungan LP2B',
+    'pp-1-2011-lp2b': 'Penetapan dan Alih Fungsi LP2B',
+    'inpres-5-2019-pippib': 'Penghentian Izin Baru Hutan Primer & Gambut',
+    'rtrw-mataram-2019': 'RTRW 2011–2031 (perubahan)',
+    'rdtr-mataram-2024': 'RDTR Ampenan, Sekarbela, Mataram, Selaparang',
+    'nas-pp-43-2021': 'Penyelesaian Ketidaksesuaian Tata Ruang',
+    'nas-permen-14-2021': 'Basis Data & Penyajian Peta RTR',
+    'nas-permen-6-2026': 'Penyusunan & Revisi RTR (ubah Permen 11/2021)',
+    'nas-permen-13-2021': 'Pelaksanaan KKPR & Sinkronisasi Program',
+    'nas-permen-21-2021': 'Pengendalian & Pengawasan Pemanfaatan Ruang',
+    'nas-juknis-6-2023': 'Persetujuan KKPR Kegiatan Berusaha',
+    'nas-juknis-13-2023': 'KKPR Kegiatan Nonberusaha',
+    'nas-juknis-3-2025': 'Forum Penataan Ruang Daerah',
+    'nas-permen-2-2024': 'Verifikasi Lahan Sawah & Penetapan LSD',
+    'nas-permen-19-2016': 'Penetapan LP2B tanpa RTRW',
+    'nas-uu-27-2007': 'Wilayah Pesisir & Pulau-Pulau Kecil',
+    'nas-pp-26-2008': 'RTRW Nasional'
+  };
+  function shortTitle(e) {
+    if (TITLE[e.id]) return TITLE[e.id];
+    var t = String(e.tentang || '');
+    if (e.jenis === 'RTRW' || e.jenis === 'RDTR') {
+      t = t.replace(/^Rencana Tata Ruang Wilayah Provinsi Nusa Tenggara Barat/, 'RTRW Provinsi')
+        .replace(/^Rencana Tata Ruang Wilayah/, 'RTRW').replace(/^Rencana Detail Tata Ruang/, 'RDTR')
+        .replace(/^RTRW (Kabupaten|Kota) [A-Za-z ]+?(?= Tahun| \d|$)/, 'RTRW')
+        .replace(/^RDTR dan Peraturan Zonasi/, 'RDTR & PZ').replace('Wilayah Perencanaan', 'WP')
+        .replace('Kawasan Ekonomi Khusus', 'KEK').replace(/Tahun (\d{4}\s*[–-]\s*\d{4})/, '$1').replace(/\s+/g, ' ').trim();
+    }
+    return t;
+  }
+  function metaOf(f) { return f.url ? (f.sumber || 'Situs resmi') : f.hal + ' hlm · ' + mb(f.mb); }
   function itemHtml(e) {
-    var files = e.files.map(function (f) {
-      var meta = f.url ? 'Sumber: ' + (f.sumber || 'situs resmi') : f.hal + ' hlm · ' + mb(f.mb);
-      if (!fileReady(f)) return '<span class="reg-file off"><i class="fas fa-clock"></i><b>' + esc(f.label) + '</b><small>Segera tersedia · ' + meta + '</small></span>';
-      return '<a class="reg-file" href="' + esc(fileUrl(f)) + '" target="_blank" rel="noopener"><i class="fas ' + (f.url ? 'fa-external-link-alt' : 'fa-file-pdf') + '"></i><b>' + esc(f.label) + '</b><small>' + meta + '</small></a>';
+    var ty = TYPES[e.jenis] || TYPES.Nasional, ready = e.files.filter(fileReady), main = ready.filter(function (f) { return !f.url; })[0] || ready[0];
+    var tip = e.nomor + ' tentang ' + e.tentang + (main && !main.url ? ' (' + metaOf(main) + ')' : '');
+    var head = '<span class="rg-ico ' + ty[0] + '"><i class="fas ' + ty[1] + '"></i></span><span class="rg-txt"><b>' + esc(shortTitle(e)) + '</b><small>' + esc(shortNomor(e.nomor)) + '</small></span>';
+    var row = main
+      ? '<a class="rg-main" href="' + esc(fileUrl(main)) + '" target="_blank" rel="noopener" title="' + esc(tip) + '">' + head
+        + '<span class="rg-size">' + (main.url ? '' : esc(mb(main.mb))) + '</span><i class="fas ' + (main.url ? 'fa-external-link-alt' : 'fa-chevron-right') + ' rg-chev"></i></a>'
+      : '<div class="rg-main off">' + head + '<span class="rg-soon">' + esc(e.status || 'Belum tersedia') + '</span></div>';
+    var extras = ready.filter(function (f) { return f !== main; }).map(function (f) {
+      return '<a class="rg-x" href="' + esc(fileUrl(f)) + '" target="_blank" rel="noopener">' + esc(f.label) + (f.url ? ' <i class="fas fa-external-link-alt"></i>' : ' <span>' + esc(mb(f.mb)) + '</span>') + '</a>';
     }).join('');
-    if (!e.files.length) files = '<span class="reg-file off"><i class="fas fa-hourglass-half"></i><b>' + esc(e.status || 'Dokumen belum tersedia') + '</b></span>';
-    return '<article class="reg-item' + (state.focus === e.id ? ' focus' : '') + '" id="reg-' + esc(e.id) + '">'
-      + '<div class="reg-head"><span class="reg-badge ' + e.jenis.toLowerCase() + '">' + esc(e.jenis) + '</span><b>' + esc(e.nomor) + '</b></div>'
-      + '<p class="reg-about">' + esc(e.tentang) + '</p>'
-      + (e.catatan ? '<p class="reg-note">' + esc(e.catatan) + '</p>' : '')
-      + '<div class="reg-files">' + files + '</div></article>';
+    var note = e.catatan ? '<span class="rg-note">' + esc(e.catatan) + '</span>' : '';
+    return '<div class="rg-row' + (state.focus === e.id ? ' focus' : '') + '" id="reg-' + esc(e.id) + '">' + row
+      + (extras || note ? '<div class="rg-sub">' + extras + note + '</div>' : '') + '</div>';
   }
   function render() {
     var body = document.getElementById('regList'); if (!body) return;
     var q = norm(state.q), groups = [], seen = Object.create(null), count = 0;
     KATALOG.forEach(function (e) {
       if (state.jenis !== 'Semua' && e.jenis !== state.jenis) return;
-      if (q && norm([e.wilayah, e.pulau, e.jenis, e.nomor, e.tentang].join(' ')).indexOf(q) < 0) return;
-      if (!seen[e.wilayah]) { seen[e.wilayah] = { name: e.wilayah, pulau: e.pulau, items: [] }; groups.push(seen[e.wilayah]); }
+      if (q && norm([e.wilayah, e.pulau, e.jenis, e.nomor, shortNomor(e.nomor), e.tentang, shortTitle(e)].join(' ')).indexOf(q) < 0) return;
+      if (!seen[e.wilayah]) { seen[e.wilayah] = { name: e.wilayah, items: [] }; groups.push(seen[e.wilayah]); }
       seen[e.wilayah].items.push(e); count++;
     });
-    var html = '', lastPulau = '';
-    groups.forEach(function (g) {
-      if (g.pulau !== lastPulau) { html += '<h3 class="reg-pulau">' + esc(g.pulau) + '</h3>'; lastPulau = g.pulau; }
-      html += '<section class="reg-group"><h4>' + esc(g.name) + '</h4>' + g.items.map(itemHtml).join('') + '</section>';
-    });
-    body.innerHTML = html || '<p class="reg-empty">Tidak ada regulasi yang cocok dengan pencarian.</p>';
-    var c = document.getElementById('regCount'); if (c) c.textContent = count + ' regulasi';
+    body.innerHTML = groups.map(function (g) {
+      return '<section class="rg-group"><h4>' + esc(g.name) + '</h4><div class="rg-card">' + g.items.map(itemHtml).join('') + '</div></section>';
+    }).join('') || '<div class="rg-empty"><i class="fas fa-search"></i><b>Tidak ditemukan</b><span>Coba kata lain, misalnya nama kabupaten atau nomor peraturan.</span></div>';
+    var c = document.getElementById('regCount'); if (c) c.textContent = count + ' dokumen';
   }
 
   function build() {
     if (document.getElementById('regulasiModal')) return;
     var shell = document.createElement('div');
     shell.className = 'modal-shell'; shell.id = 'regulasiModal';
-    shell.innerHTML = '<section class="modal reg-modal"><div class="modal-top"><h2>Regulasi Tata Ruang</h2><button type="button" class="close" data-close>&times;</button></div>'
-      + '<div class="modal-body">'
-      + '<p class="reg-lead">Dokumen RTRW, RDTR, data tematik yang menjadi dasar layer di Bale Ruang NTB, serta peraturan nasional terkait penataan ruang. Ketuk dokumen untuk membuka PDF-nya.</p>'
-      + '<div class="reg-tools"><label class="reg-search"><i class="fas fa-search"></i><input id="regSearch" type="search" placeholder="Cari wilayah, nomor, atau topik" autocomplete="off"></label>'
-      + '<div class="reg-chips" role="tablist"><button type="button" class="on" data-jenis="Semua">Semua</button><button type="button" data-jenis="RTRW">RTRW</button><button type="button" data-jenis="RDTR">RDTR</button><button type="button" data-jenis="Tematik">Tematik</button><button type="button" data-jenis="Nasional">Nasional</button></div>'
-      + '<span id="regCount" class="reg-count"></span></div>'
-      + '<div id="regList"></div>'
-      + '<p class="reg-foot">Dokumen dihimpun sebagai rujukan. Untuk keperluan resmi, gunakan salinan dari JDIH atau instansi penerbit. Bila menemukan dokumen yang keliru atau sudah dicabut, mohon sampaikan kepada tim pengembang.</p>'
+    var segs = ['Semua', 'RTRW', 'RDTR', 'Tematik', 'Nasional'].map(function (j, i) { return '<button type="button" role="tab" data-jenis="' + j + '"' + (i ? '' : ' class="on" aria-selected="true"') + '>' + j + '</button>'; }).join('');
+    shell.innerHTML = '<section class="modal reg-modal"><div class="modal-top"><h2>Regulasi</h2><button type="button" class="close" data-close>&times;</button></div>'
+      + '<div class="rg-bar"><label class="rg-search"><i class="fas fa-search"></i><input id="regSearch" type="search" placeholder="Cari wilayah, nomor, atau topik" autocomplete="off" aria-label="Cari regulasi"></label>'
+      + '<div class="rg-seg" role="tablist">' + segs + '</div></div>'
+      + '<div class="modal-body rg-body"><div id="regList"></div>'
+      + '<p class="rg-foot"><span id="regCount"></span><br>Dihimpun sebagai rujukan. Untuk keperluan resmi gunakan salinan dari JDIH atau instansi penerbit.</p>'
       + '</div></section>';
     document.body.appendChild(shell);
     shell.addEventListener('click', function (ev) { if (ev.target === shell) shell.classList.remove('open'); });
@@ -81,8 +126,8 @@
     shell.querySelectorAll('[data-jenis]').forEach(function (b) {
       b.addEventListener('click', function () {
         state.jenis = b.dataset.jenis; state.focus = '';
-        shell.querySelectorAll('[data-jenis]').forEach(function (x) { x.classList.toggle('on', x === b); });
-        render();
+        shell.querySelectorAll('[data-jenis]').forEach(function (x) { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+        render(); shell.querySelector('.rg-body').scrollTop = 0;
       });
     });
     render();
@@ -93,7 +138,7 @@
     if (id) {
       state.q = ''; state.jenis = 'Semua'; state.focus = id;
       shell.querySelector('#regSearch').value = '';
-      shell.querySelectorAll('[data-jenis]').forEach(function (x) { x.classList.toggle('on', x.dataset.jenis === 'Semua'); });
+      shell.querySelectorAll('[data-jenis]').forEach(function (x) { x.classList.toggle('on', x.dataset.jenis === 'Semua'); x.setAttribute('aria-selected', x.dataset.jenis === 'Semua' ? 'true' : 'false'); });
     }
     render();
     shell.classList.add('open');
