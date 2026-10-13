@@ -25,6 +25,12 @@
   function dms(v, pos, neg) { var h = v < 0 ? neg : pos, a = Math.abs(v), d = Math.floor(a), mf = (a - d) * 60, m = Math.floor(mf), s = (mf - m) * 60; return d + '°' + pad(m) + "'" + s.toFixed(2).replace('.', ',') + '"' + h; }
   function idNum(n) { return Number(n).toLocaleString('id-ID'); }
   var DIRS = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut'];
+  // Kompas HP mengacu ke utara magnetis; dikoreksi deklinasi magnetis NTB (± 1° ke timur, perkiraan WMM 2025)
+  // sehingga arah yang dicatat mengacu ke UTARA SEJATI (utara geografis).
+  var DECL = 1.0, EXACT_TOL = 2;
+  function toTrue(mag) { return ((mag + DECL) % 360 + 360) % 360; }
+  var CARD = ['Utara', 'Timur', 'Selatan', 'Barat'];
+  function exactCardinal(h) { if (h == null) return null; var k = Math.round(h / 90) % 4, d = Math.abs(((h - k * 90) + 540) % 360 - 180); return d <= EXACT_TOL ? CARD[k] : null; }
   function dirName(h) { return DIRS[Math.round(((h % 360) + 360) % 360 / 45) % 8]; }
   function accClass(acc) { return acc == null ? 'none' : acc <= GOOD ? 'good' : acc <= FAIR ? 'fair' : 'poor'; }
   function accText(acc) { return acc == null ? 'GPS tidak tersedia' : '± ' + Math.max(1, Math.round(acc)) + ' m'; }
@@ -83,7 +89,7 @@
       else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
       if (h == null) return;
       var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
-      compass.h = ((h + so) % 360 + 360) % 360;
+      compass.h = toTrue(h + so);
     }
     var go = function () { window.addEventListener('deviceorientationabsolute', onOri, true); window.addEventListener('deviceorientation', onOri, true); };
     if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') DeviceOrientationEvent.requestPermission().then(function (s) { if (s === 'granted') go(); }).catch(function () {});
@@ -120,7 +126,7 @@
         if (g[3] && String.fromCharCode(v.getUint8(g[3].at)) === 'W') lon = -lon;
         if (isFinite(lat) && isFinite(lon) && (lat || lon)) { res.lat = lat; res.lon = lon; }
         if (g[0x1F] && g[0x1F].type === 5) res.acc = rat(t + u32(g[0x1F].at));
-        if (g[0x11] && g[0x11].type === 5) res.heading = rat(t + u32(g[0x11].at));
+        if (g[0x11] && g[0x11].type === 5) { res.heading = rat(t + u32(g[0x11].at)); if (g[0x10] && String.fromCharCode(v.getUint8(g[0x10].at)) === 'M') res.heading = toTrue(res.heading); }
       }
     }
     return res;
@@ -163,13 +169,29 @@
     }
     g.restore();
   }
+  // Rasio akhir dirancang: foto lanskap -> 4:5 (seperti unggahan potret), foto potret -> 9:16 (seperti story).
+  function mapsUrl(p) { return 'https://www.google.com/maps/search/?api=1&query=' + p.lat.toFixed(7) + ',' + p.lon.toFixed(7); }
+  function drawQr(g, text, x, y, size) {
+    if (!window.qrcode) return false;
+    try {
+      var q = window.qrcode(0, 'M'); q.addData(text); q.make();
+      var n = q.getModuleCount(), quiet = 10, cell = (size - quiet * 2) / n;
+      g.fillStyle = '#fff'; roundRect(g, x, y, size, size, 18); g.fill();
+      g.fillStyle = '#111214';
+      for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(Math.floor(x + quiet + c * cell), Math.floor(y + quiet + r * cell), Math.ceil(cell), Math.ceil(cell));
+      return true;
+    } catch (e) { return false; }
+  }
+  function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   function stamp(p) {
-    var W = 1440, src = p.raw, ph = Math.round(src.height * W / src.width), P = 600, pad = 72;
+    var W = 1440, src = p.raw, ph = Math.round(src.height * W / src.width), pad = 72;
+    var target = ph > W * 1.05 ? W * 16 / 9 : ph < W * 0.95 ? W * 5 / 4 : W * 1.45;
+    var P = Math.round(Math.max(600, Math.min(780, target - ph))), extra = P - 600, gap = extra / 3;
     var c = document.createElement('canvas'); c.width = W; c.height = ph + P;
     var g = c.getContext('2d');
     g.drawImage(src, 0, 0, W, ph);
     g.fillStyle = '#111214'; g.fillRect(0, ph, W, P);
-    var ad = p.admin || {}, m = tm3(p.lon, p.lat, ad.regency), y0 = ph;
+    var ad = p.admin || {}, m = tm3(p.lon, p.lat, ad.regency), y0 = ph + gap * 0.9;
     // baris atas: tanggal & waktu | merek
     txt(g, fmtDate(p.time), pad, y0 + 92, 30, 500, 'rgba(255,255,255,.72)');
     txt(g, fmtTime(p.time) + ' ' + tzName(p.time), pad, y0 + 158, 58, 300, '#fff');
@@ -179,7 +201,7 @@
     txt(g, 'Dokumentasi Geotag', lx + 92, y0 + 134, 22, 400, 'rgba(255,255,255,.55)');
     g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(pad, y0 + 200, W - pad * 2, 2);
     // kolom: lokasi | koordinat | arah
-    var cy = y0 + 262, cw = 430, c2 = pad + cw + 50, dialX = W - pad - 128, dialY = y0 + 372;
+    var cy = y0 + 262 + gap * 0.6, cw = 430, c2 = pad + cw + 50, dialX = W - pad - 128, dialY = cy + 110;
     txt(g, 'LOKASI', pad, cy, 19, 600, 'rgba(255,255,255,.45)');
     txt(g, ad.village ? 'Desa/Kel. ' + ad.village : 'Lokasi tidak diketahui', pad, cy + 50, 34, 600, '#fff', cw);
     txt(g, ad.district ? 'Kec. ' + ad.district : '', pad, cy + 94, 26, 400, 'rgba(255,255,255,.75)', cw);
@@ -188,13 +210,22 @@
     txt(g, p.lat.toFixed(6) + ', ' + p.lon.toFixed(6), c2, cy + 50, 34, 500, '#fff', dialX - 150 - c2);
     txt(g, dms(p.lat, 'LU', 'LS') + '  ' + dms(p.lon, 'BT', 'BB'), c2, cy + 94, 24, 400, 'rgba(255,255,255,.75)', dialX - 150 - c2);
     txt(g, 'TM-3 ' + m.zone + '   X ' + idNum(m.x) + '   Y ' + idNum(m.y), c2, cy + 132, 24, 400, 'rgba(255,255,255,.75)', dialX - 150 - c2);
-    dial(g, dialX, dialY, 112, p.heading);
-    txt(g, p.heading != null ? Math.round(p.heading) + '° ' + dirName(p.heading) : 'Arah tidak tersedia', dialX, dialY + 158, 26, 600, p.heading != null ? '#fff' : 'rgba(255,255,255,.5)', 300, 'center');
-    // baris bawah: akurasi & sumber
-    var by = y0 + P - 62, col = p.acc == null ? '#8e8e93' : p.acc <= GOOD ? '#30d158' : p.acc <= FAIR ? '#ffd60a' : '#ff453a';
+    // QR lokasi (dapat dipindai) menggantikan kompas; derajat arah tetap ditulis di bawahnya.
+    var qs = 212, qx = dialX - qs / 2, qy = dialY - qs / 2 - 14;
+    if (!drawQr(g, mapsUrl(p), qx, qy, qs)) dial(g, dialX, dialY, 112, p.heading);
+    var ex = exactCardinal(p.heading), hy = dialY + 158;
+    if (p.heading == null) txt(g, 'Arah tidak tersedia', dialX, hy, 24, 500, 'rgba(255,255,255,.5)', 300, 'center');
+    else {
+      var label = Math.round(p.heading) + '° ' + (ex ? 'Tepat ' + ex : dirName(p.heading));
+      g.font = '600 26px ' + FONT; var tw = g.measureText(label).width + 34, tx = dialX - tw / 2;
+      g.save(); g.translate(tx + 12, hy - 9); g.rotate(p.heading * Math.PI / 180); g.fillStyle = ex ? '#30d158' : '#0a84ff'; g.beginPath(); g.moveTo(0, -11); g.lineTo(7, 9); g.lineTo(0, 5); g.lineTo(-7, 9); g.closePath(); g.fill(); g.restore();
+      txt(g, label, tx + 34, hy, 26, 600, ex ? '#30d158' : '#fff');
+    }
+    // baris bawah: akurasi & sumber (sejajar teks di bawah kompas)
+    var by = dialY + 158, col = p.acc == null ? '#8e8e93' : p.acc <= GOOD ? '#30d158' : p.acc <= FAIR ? '#ffd60a' : '#ff453a';
     g.fillStyle = col; g.beginPath(); g.arc(pad + 9, by - 9, 9, 0, Math.PI * 2); g.fill();
     txt(g, 'Akurasi ' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : 'tidak tercatat'), pad + 30, by, 26, 600, '#fff');
-    txt(g, p.source || '', pad + 260, by, 22, 400, 'rgba(255,255,255,.5)', dialX - 160 - pad - 260);
+    txt(g, p.source || '', c2, by, 22, 400, 'rgba(255,255,255,.5)', dialX - 160 - c2);
     p.stamped = c;
     return c;
   }
@@ -255,10 +286,15 @@
     chip.className = 'gt-chip gt-gps ' + accClass(s.acc); chip.querySelector('b').textContent = accText(s.acc);
     hint.textContent = s.acc <= FAIR ? '' : 'Akurasi GPS masih lemah — pindah ke area terbuka bila memungkinkan';
   }
+  var lastExact = null;
   function updateDir() {
     var d = $('.gt-dir', S.el);
     if (compass.h == null) { d.hidden = true; return; }
-    d.hidden = false; d.innerHTML = '<i class="fas fa-location-arrow" style="transform:rotate(' + (compass.h - 45) + 'deg)"></i>' + dirName(compass.h) + ' ' + Math.round(compass.h) + '°';
+    var ex = exactCardinal(compass.h);
+    d.hidden = false; d.classList.toggle('exact', !!ex);
+    d.innerHTML = '<i class="fas fa-location-arrow" style="transform:rotate(' + (compass.h - 45) + 'deg)"></i>' + Math.round(compass.h) + '° ' + (ex ? 'Tepat ' + ex : dirName(compass.h));
+    if (ex && ex !== lastExact && navigator.vibrate) navigator.vibrate(25);
+    lastExact = ex;
   }
   function startCam() {
     if (S.stream || !S.el) return;
@@ -286,7 +322,7 @@
   function open() {
     build();
     S.photos = []; $('.gt-in-title', S.el).value = ''; $('.gt-in-note', S.el).value = '';
-    compassStart();
+    compassStart(); loadQr();
     showCam();
   }
   function closeAll() { stopCam(); gpsStop(); S.view = ''; if (S.el) S.el.className = 'gt-shell'; }
@@ -369,7 +405,7 @@
       + row('Koordinat', p.lat.toFixed(6) + ', ' + p.lon.toFixed(6))
       + row('TM-3 ' + m.zone, 'X ' + idNum(m.x) + ' · Y ' + idNum(m.y))
       + row('Akurasi', p.acc != null ? accText(p.acc) + (p.acc > FAIR ? ' — lemah' : p.acc > GOOD ? ' — cukup' : ' — baik') : 'Tidak tercatat', accCls)
-      + (p.heading != null ? row('Arah kamera', dirName(p.heading) + ' ' + Math.round(p.heading) + '°') : '')
+      + (p.heading != null ? row('Arah kamera', Math.round(p.heading) + '° ' + (exactCardinal(p.heading) ? 'Tepat ' + exactCardinal(p.heading) : dirName(p.heading)) + ' <small class="gt-sm">dari utara sejati</small>', exactCardinal(p.heading) ? 'acc-good' : '') : '')
       + row('Waktu', esc(fmtDate(p.time)) + ', ' + fmtTime(p.time) + ' ' + tzName(p.time))
       + row('Sumber koordinat', esc(p.source), p.noGps ? 'acc-poor' : '');
   }
@@ -414,7 +450,14 @@
     var fileName = 'BaleRuangNTB_Geotag_' + String(ad.village || 'Lokasi').replace(/[^A-Za-z0-9]+/g, '') + '_' + fileStamp(p0.time);
     var docNo = 'GT-' + fileStamp(p0.time).replace('_', '-');
     var place = [ad.village && 'Desa/Kel. ' + ad.village, ad.district && 'Kec. ' + ad.district, ad.regency].filter(Boolean).join(', ');
-    var r0 = p0.raw.height / p0.raw.width, photoH = n === 1 ? Math.round(Math.min(112, 186 * r0)) : n === 2 ? 100 : 104;
+    // Tata letak foto ditentukan oleh jumlah & orientasi (lanskap/potret) agar seimbang.
+    var portraitN = ps.filter(function (p) { return p.raw.height > p.raw.width * 1.05; }).length, PORT = portraitN * 2 > n || (n === 1 && portraitN === 1);
+    var hero = n === 1 && PORT, GAP = 3, FULL = 186;
+    var cols = n === 1 ? 1 : n === 2 ? 2 : n === 3 ? 3 : (PORT ? 4 : 2), rowsN = Math.ceil(n / cols);
+    var cellW = (FULL - GAP * (cols - 1)) / cols, ratio = n === 1 ? p0.raw.height / p0.raw.width : (PORT ? 4 / 3 : 3 / 4);
+    var cellH = cellW * ratio, cap = n === 1 ? 128 : (rowsN > 1 ? 100 : 122);
+    if (cellH * rowsN + GAP * (rowsN - 1) > cap) cellH = (cap - GAP * (rowsN - 1)) / rowsN;
+    var photoH = Math.round(cellH * rowsN + GAP * (rowsN - 1));
     var photos = ps.map(function (p, k) {
       return '<figure class="ph"><img src="' + p.raw.toDataURL('image/jpeg', .9) + '" alt="Foto ' + (k + 1) + '">' + (n > 1 ? '<span class="no">' + (k + 1) + '</span>' : '') + '</figure>';
     }).join('');
@@ -423,17 +466,21 @@
       return '<tr><td class="n">' + (k + 1) + '</td>'
         + '<td>' + p.lat.toFixed(6) + ', ' + p.lon.toFixed(6) + '<small>' + dms(p.lat, 'LU', 'LS') + ' · ' + dms(p.lon, 'BT', 'BB') + '</small></td>'
         + '<td>X ' + idNum(m.x) + ' · Y ' + idNum(m.y) + '<small>TM-3 zona ' + m.zone + '</small></td>'
-        + '<td class="c">' + (p.heading != null ? arrowSvg(p.heading) + Math.round(p.heading) + '°<small>' + dirName(p.heading) + '</small>' : '–') + '</td>'
+        + '<td class="c">' + (p.heading != null ? arrowSvg(p.heading) + Math.round(p.heading) + '°<small' + (exactCardinal(p.heading) ? ' class="ok">Tepat ' + exactCardinal(p.heading) : '>' + dirName(p.heading)) + '</small>' : '–') + '</td>'
         + '<td class="c">' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : '–') + '<small>' + (p.noGps ? 'posisi perangkat' : p.source.indexOf('EXIF') >= 0 ? 'data foto' : 'GPS') + '</small></td>'
         + '<td class="c">' + fmtTime(p.time) + '<small>' + p.time.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + '</small></td></tr>';
     }).join('');
     var marks = JSON.stringify(ps.map(function (p) { return [p.lat, p.lon]; }));
+    var mapCard = '<div class="card mapc"><div id="map"></div><span class="north">U</span></div>';
+    var lokCard = '<div class="card"><h3>Lokasi</h3><div class="kv"><span>Desa/Kel.</span><b>' + esc(ad.village || '–') + '</b><span>Kecamatan</span><b>' + esc(ad.district || '–') + '</b><span>Kab/Kota</span><b>' + esc(ad.regency || '–') + '</b><span>Provinsi</span><b>' + esc(ad.province || '–') + '</b>' + (hero ? '' : '<span>Jumlah foto</span><b>' + n + '</b>') + '</div></div>';
     var css = '@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box}html,body{margin:0}body{color:#1d1d1f;font:8.6pt/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
       + '.page{display:flex;flex-direction:column;height:272mm}'
       + '.hd{display:flex;align-items:center;justify-content:space-between;padding-bottom:3mm;border-bottom:.25mm solid #d2d2d7}.brand{display:flex;align-items:center;gap:2.6mm}.brand img{width:8.5mm;height:8.5mm}.brand b{display:block;font-size:10pt;font-weight:600}.brand span{color:#86868b;font-size:7pt}'
       + '.meta{text-align:right;color:#86868b;font-size:7pt}.meta b{display:block;color:#1d1d1f;font-size:7.6pt;font-weight:600;letter-spacing:.14em}'
       + '.tt{display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;margin:5mm 0 4mm}h1{margin:0;font-size:15pt;font-weight:600;letter-spacing:-.01em}.tt p{margin:1mm 0 0;color:#6e6e73;font-size:8.6pt}.date{text-align:right;white-space:nowrap}.date b{display:block;font-size:11pt;font-weight:500;font-variant-numeric:tabular-nums}.date span{color:#86868b;font-size:7.4pt}'
-      + '.photos{display:grid;gap:3mm;height:' + photoH + 'mm;grid-template-columns:' + (n === 1 ? '1fr' : '1fr 1fr') + ';grid-template-rows:' + (n <= 2 ? '1fr' : '1fr 1fr') + '}'
+      + '.photos{display:grid;gap:' + GAP + 'mm;height:' + photoH + 'mm;grid-template-columns:repeat(' + cols + ',1fr);grid-template-rows:repeat(' + rowsN + ',1fr)}'
+      + (n > 1 ? '.photos{flex:1 1 auto;height:auto;min-height:' + photoH + 'mm;max-height:' + Math.round(photoH * (n === 3 ? 1.9 : 1.6)) + 'mm}' : '')
+      + '.hero{flex:1 1 auto;display:grid;grid-template-columns:96mm 1fr;gap:3mm;min-height:128mm;max-height:170mm}.hero .ph{height:auto}.hero .ph img{object-fit:cover}.side{display:grid;grid-template-rows:1fr auto 30mm;gap:3mm;min-height:0}.side .mapc{min-height:58mm}.side .card{height:auto}.qrc.row{flex-direction:row;justify-content:flex-start;gap:3.5mm;text-align:left}.qrc.row svg{width:22mm;height:22mm;flex:0 0 22mm}.qrc.row b{margin-top:0}.qrc.row div{display:flex;flex-direction:column}'
       + '.ph{position:relative;margin:0;border-radius:2.5mm;overflow:hidden;background:#f5f5f7}.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:' + (n === 1 ? 'contain' : 'cover') + '}'
       + '.ph .no{position:absolute;left:2mm;top:2mm;width:5.6mm;height:5.6mm;border-radius:50%;background:rgba(255,255,255,.94);font-size:7.6pt;font-weight:600;display:grid;place-items:center;box-shadow:0 .2mm .8mm rgba(0,0,0,.25)}'
       + '.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:4mm;height:54mm}'
@@ -442,7 +489,7 @@
       + '.kv{display:grid;grid-template-columns:auto 1fr;gap:1.3mm 3mm}.kv span{color:#86868b}.kv b{font-weight:500;text-align:right}'
       + '.qrc{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;text-decoration:none;color:inherit}.qrc svg{width:27mm;height:27mm}.qrc b{margin-top:2.2mm;font-size:8pt;font-weight:600;color:#007aff}.qrc span{margin-top:.6mm;color:#86868b;font-size:6.8pt}'
       + 'table{width:100%;margin-top:4mm;border-collapse:collapse;font-size:8pt;font-variant-numeric:tabular-nums}th{padding:0 2mm 1.2mm;color:#86868b;font-size:6.6pt;font-weight:600;letter-spacing:.08em;text-transform:uppercase;text-align:left;border-bottom:.25mm solid #d2d2d7}th.c,td.c{text-align:center}'
-      + 'td{padding:1.6mm 2mm;border-bottom:.2mm solid #ececf0;vertical-align:top}td small{display:block;color:#86868b;font-size:6.6pt}td.n{width:6mm;font-weight:600;color:#86868b}.arr{width:2.6mm;height:2.6mm;margin-right:1mm;vertical-align:-.3mm}'
+      + 'td{padding:1.6mm 2mm;border-bottom:.2mm solid #ececf0;vertical-align:top}td small{display:block;color:#86868b;font-size:6.6pt}td.n{width:6mm;font-weight:600;color:#86868b}td small.ok{color:#248a3d;font-weight:600}.arr{width:2.6mm;height:2.6mm;margin-right:1mm;vertical-align:-.3mm}'
       + '.note{margin-top:4mm;padding:2.8mm 3.6mm;border-radius:2.5mm;background:#f5f5f7}.note h3{margin:0 0 1mm;color:#86868b;font-size:6.6pt;font-weight:600;letter-spacing:.1em;text-transform:uppercase}.note p{margin:0;white-space:pre-wrap}'
       + '.ft{margin-top:auto;padding-top:2.6mm;border-top:.25mm solid #e5e5ea;display:flex;justify-content:space-between;color:#86868b;font-size:6.8pt}.ft a{color:#86868b;text-decoration:none}'
       + '.mk{width:5mm;height:5mm;margin:-2.5mm 0 0 -2.5mm;border-radius:50%;background:#007aff;border:.5mm solid #fff;color:#fff;font:600 6.4pt/4mm Arial;text-align:center;box-shadow:0 .3mm 1mm rgba(0,0,0,.45)}.leaflet-control-attribution{display:none}.leaflet-control-scale-line{font-size:6pt;padding:0 1mm}'
@@ -450,11 +497,11 @@
     return '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>' + esc(fileName) + '</title><link rel="stylesheet" href="' + abs('css/leaflet.css') + '"><style>' + css + '</style></head><body><div class="page">'
       + '<header class="hd"><div class="brand"><img src="' + abs('images/bale-ruang-ntb-logo-v3.png') + '" alt=""><div><b>Bale Ruang NTB</b><span>Satu Tempat, Seluruh Informasi Ruang</span></div></div><div class="meta"><b>DOKUMENTASI GEOTAG</b>No. ' + esc(docNo) + '</div></header>'
       + '<section class="tt"><div><h1>' + esc(title || 'Dokumentasi Geotag') + '</h1><p>' + esc(place || 'Lokasi pada koordinat di bawah') + '</p></div><div class="date"><b>' + fmtTime(p0.time) + ' ' + tzName(p0.time) + '</b><span>' + esc(fmtDate(p0.time)) + '</span></div></section>'
-      + '<section class="photos">' + photos + '</section>'
-      + '<section class="cards"><div class="card mapc"><div id="map"></div><span class="north">U</span></div>'
-      + '<div class="card"><h3>Lokasi</h3><div class="kv"><span>Desa/Kel.</span><b>' + esc(ad.village || '–') + '</b><span>Kecamatan</span><b>' + esc(ad.district || '–') + '</b><span>Kab/Kota</span><b>' + esc(ad.regency || '–') + '</b><span>Provinsi</span><b>' + esc(ad.province || '–') + '</b><span>Jumlah foto</span><b>' + n + '</b></div></div>'
-      + '<a class="card qrc" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<b>Buka di Google Maps</b><span>Pindai atau klik' + (n > 1 ? ' · titik foto 1' : '') + '</span></a></section>'
-      + '<table><thead><tr><th></th><th>Lintang, Bujur (WGS84)</th><th>Koordinat TM-3</th><th class="c">Arah</th><th class="c">Akurasi</th><th class="c">Waktu</th></tr></thead><tbody>' + rows + '</tbody></table>'
+      + (hero
+        ? '<section class="hero"><figure class="ph">' + photos.replace(/^<figure class="ph">|<\/figure>$/g, '') + '</figure><div class="side">' + mapCard + lokCard + '<a class="card qrc row" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<div><b>Buka di Google Maps</b><span>Pindai atau klik kode ini</span></div></a></div></section>'
+        : '<section class="photos">' + photos + '</section><section class="cards">' + mapCard + lokCard
+          + '<a class="card qrc" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<b>Buka di Google Maps</b><span>Pindai atau klik' + (n > 1 ? ' · titik foto 1' : '') + '</span></a></section>')
+      + '<table><thead><tr><th></th><th>Lintang, Bujur (WGS84)</th><th>Koordinat TM-3</th><th class="c">Arah (U. sejati)</th><th class="c">Akurasi</th><th class="c">Waktu</th></tr></thead><tbody>' + rows + '</tbody></table>'
       + (note ? '<div class="note"><h3>Keterangan</h3><p>' + esc(note) + '</p></div>' : '')
       + '<footer class="ft"><span>' + (officer ? 'Petugas: ' + esc(officer) + ' · ' : '') + 'Dibuat ' + esc(new Date().toLocaleString('id-ID')) + '</span><a href="' + esc(base) + '">' + esc(base.replace(/^https?:\/\//, '').replace(/\/$/, '')) + '</a></footer></div>'
       + '<script src="' + abs('js/leaflet.js') + '"><\/script><script>(function(){var pts=' + marks + ',name=' + JSON.stringify(fileName) + ';document.title=name;'
