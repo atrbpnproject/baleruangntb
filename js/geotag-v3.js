@@ -377,9 +377,9 @@
     var p = S.photos[S.cur]; if (!p) return;
     var name = 'BaleRuangNTB_Geotag_' + fileStamp(p.time) + '.jpg';
     p.stamped.toBlob(function (blob) {
-      var file = window.File ? new File([blob], name, { type: 'image/jpeg' }) : null;
-      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: name }).catch(function () {}); return; }
-      var a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 30000);
+      // Langsung simpan ke perangkat (folder Unduhan), tanpa menu bagikan.
+      var a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
+      toast('Foto tersimpan di folder Unduhan: ' + name);
     }, 'image/jpeg', .92);
   }
   function fileStamp(d) { return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()); }
