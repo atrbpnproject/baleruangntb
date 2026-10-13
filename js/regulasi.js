@@ -146,91 +146,85 @@
   }
   window.brOpenRegulasi = open;
 
-  // ===== Pratinjau PDF ala Quick Look: unduh dengan bilah progres, lalu tampilkan di dalam aplikasi =====
-  var ql = null, qlCtrl = null, qlBlobUrl = '';
+  // ===== Membuka PDF: bilah progres selama dimuat, lalu tampil di penampil PDF =====
+  // Bilah progres tampil di dalam aplikasi selama dokumen dimuat. Komputer: penampil PDF bawaan browser;
+  // HP (tanpa penampil PDF bawaan): halaman ditampilkan dengan PDF.js.
   function fmtMB(bytes) { var v = bytes / 1048576; return (v < 10 ? v.toFixed(1) : Math.round(v)).toString().replace('.', ',') + ' MB'; }
+  function canInline() { return navigator.pdfViewerEnabled === true || (navigator.pdfViewerEnabled === undefined && !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)); }
+  function fetchPdf(url, hintMB, onProgress, signal) {
+    return fetch(url, { signal: signal }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var total = +res.headers.get('content-length') || (+hintMB || 0) * 1e6, got = 0, parts = [];
+      if (!res.body || !res.body.getReader) return res.blob();
+      var reader = res.body.getReader();
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) return new Blob(parts, { type: 'application/pdf' });
+          parts.push(r.value); got += r.value.length; onProgress(got, total);
+          return pump();
+        });
+      }
+      return pump();
+    }).then(function (blob) { return blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' }); });
+  }
+  function progressText(got, total) {
+    return total ? Math.min(99, Math.round(got / total * 100)) + '% · ' + fmtMB(got) + ' dari ' + fmtMB(total) : fmtMB(got);
+  }
+
+  // ---- Jendela progres + penampil ----
+  var ql = null, qlCtrl = null;
   function qlBuild() {
     if (ql) return ql;
     ql = document.createElement('div');
     ql.className = 'ql-shell'; ql.setAttribute('role', 'dialog'); ql.setAttribute('aria-modal', 'true');
-    ql.innerHTML = '<div class="ql-win"><div class="ql-bar"><button type="button" class="ql-close" aria-label="Tutup"><i class="fas fa-times"></i></button>'
-      + '<b class="ql-title"></b><span class="ql-acts"><button type="button" class="ql-btn ql-zoom" data-z="-1" aria-label="Perkecil"><i class="fas fa-search-minus"></i></button><button type="button" class="ql-btn ql-zoom" data-z="1" aria-label="Perbesar"><i class="fas fa-search-plus"></i></button><a class="ql-btn ql-dl" download><i class="fas fa-download"></i><span>Unduh</span></a>'
-      + '<a class="ql-btn ql-tab" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i><span>Tab baru</span></a></span></div>'
-      + '<div class="ql-load"><span class="rg-ico ql-ico"></span><b class="ql-name"></b><div class="ql-track"><i></i></div><small class="ql-stat">Menyiapkan…</small>'
-      + '<button type="button" class="ql-cancel">Batal</button></div><iframe class="ql-frame" title="Pratinjau dokumen"></iframe><div class="ql-pages"></div><span class="ql-pg"></span></div>';
+    ql.innerHTML = '<div class="ql-load"><span class="rg-ico ql-ico"></span><b class="ql-name"></b><div class="ql-track"><i></i></div><small class="ql-stat"></small><button type="button" class="ql-cancel">Batal</button></div>'
+      + '<div class="ql-view"><div class="ql-bar"><button type="button" class="ql-close" aria-label="Tutup">Selesai</button><b class="ql-title"></b><span class="ql-pg"></span></div>'
+      + '<iframe class="ql-frame" title="Dokumen"></iframe><div class="ql-pages"></div><div class="ql-zoombar"><button type="button" data-z="-1" aria-label="Perkecil">−</button><button type="button" data-z="1" aria-label="Perbesar">+</button></div></div>';
     document.body.appendChild(ql);
     ql.querySelector('.ql-close').addEventListener('click', qlClose);
     ql.querySelector('.ql-cancel').addEventListener('click', qlClose);
-    ql.querySelectorAll('.ql-zoom').forEach(function (b) { b.addEventListener('click', function () { pjZoom(+b.dataset.z); }); });
-    ql.addEventListener('click', function (ev) { if (ev.target === ql) qlClose(); });
+    ql.querySelectorAll('[data-z]').forEach(function (b) { b.addEventListener('click', function () { pjZoom(+b.dataset.z); }); });
     document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && ql.classList.contains('open')) qlClose(); });
     return ql;
   }
   function qlClose() {
     if (qlCtrl) { qlCtrl.abort(); qlCtrl = null; }
-    if (!ql) return;
-    ql.classList.remove('open', 'ready');
-    var fr = ql.querySelector('.ql-frame'); fr.removeAttribute('src');
-    ql.classList.remove('pj'); pjReset();
-    if (qlBlobUrl) { var u = qlBlobUrl; qlBlobUrl = ''; setTimeout(function () { URL.revokeObjectURL(u); }, 60000); }
+    pjReset();
+    if (ql) { ql.classList.remove('open', 'ready', 'native'); var fr = ql.querySelector('.ql-frame'); fr.onload = null; fr.removeAttribute('src'); }
   }
-  function canInline() { return navigator.pdfViewerEnabled === true || (navigator.pdfViewerEnabled === undefined && !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)); }
-  function qlOpen(url, title, mbHint) {
-    var w = qlBuild(), name = (title || 'dokumen').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 90) + '.pdf';
-    w.querySelector('.ql-title').textContent = title; w.querySelector('.ql-name').textContent = title;
-    w.querySelector('.ql-track i').style.width = '0%'; w.querySelector('.ql-track').classList.remove('busy'); w.querySelector('.ql-frame').onload = null;
-    w.querySelector('.ql-stat').textContent = 'Menghubungkan…'; w.querySelector('.ql-cancel').textContent = 'Batal';
-    w.querySelector('.ql-tab').href = url; w.querySelector('.ql-dl').href = url; w.querySelector('.ql-dl').setAttribute('download', name);
+  function qlOpen(url, title, mb) {
+    var w = qlBuild();
+    pjReset();
+    w.querySelector('.ql-name').textContent = title; w.querySelector('.ql-title').textContent = title;
+    var bar = w.querySelector('.ql-track i'), st = w.querySelector('.ql-stat'), track = w.querySelector('.ql-track');
+    bar.style.width = '0%'; track.classList.remove('busy'); st.textContent = 'Membuka dokumen…';
     w.classList.remove('ready'); w.classList.add('open');
     qlCtrl = window.AbortController ? new AbortController() : null;
-    var ctrl = qlCtrl, hint = (+mbHint || 0) * 1e6;
-    fetch(url, { signal: ctrl ? ctrl.signal : undefined }).then(function (res) {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var total = +res.headers.get('content-length') || hint, got = 0, parts = [], bar = w.querySelector('.ql-track i'), stat = w.querySelector('.ql-stat');
-      if (!res.body || !res.body.getReader) return res.blob();
-      if (!total) w.querySelector('.ql-track').classList.add('busy');
-      var reader = res.body.getReader();
-      function pump() {
-        return reader.read().then(function (r) {
-          if (r.done) return new Blob(parts, { type: 'application/pdf' });
-          parts.push(r.value); got += r.value.length;
-          if (total) { var pct = Math.min(99, Math.round(got / total * 100)); bar.style.width = pct + '%'; stat.textContent = 'Memuat ' + pct + '% · ' + fmtMB(got) + ' dari ' + fmtMB(total); }
-          else stat.textContent = 'Memuat ' + fmtMB(got) + '…';
-          return pump();
-        });
-      }
-      return pump();
-    }).then(function (blob) {
+    var ctrl = qlCtrl;
+    fetchPdf(url, mb, function (got, total) {
+      if (total) bar.style.width = Math.min(99, got / total * 100) + '%';
+      st.textContent = 'Membuka dokumen · ' + progressText(got, total);
+    }, ctrl ? ctrl.signal : undefined).then(function (blob) {
       if (ctrl && ctrl.signal.aborted) return;
-      qlCtrl = null;
-      w.querySelector('.ql-track i').style.width = '100%';
-      if (qlBlobUrl) URL.revokeObjectURL(qlBlobUrl);
-      qlBlobUrl = URL.createObjectURL(blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' }));
-      w.querySelector('.ql-dl').href = qlBlobUrl; w.querySelector('.ql-tab').href = qlBlobUrl;
+      bar.style.width = '100%'; track.classList.add('busy'); st.textContent = 'Menyiapkan halaman…';
       if (canInline()) {
-        // Tetap tampilkan progres sampai penampil PDF selesai menyiapkan dokumen (dokumen besar butuh beberapa detik).
-        w.querySelector('.ql-stat').textContent = 'Menampilkan dokumen…';
-        w.querySelector('.ql-track').classList.add('busy');
+        // Komputer: penampil PDF bawaan browser di dalam aplikasi; progres tetap tampil sampai dokumen siap.
         var fr = w.querySelector('.ql-frame'), shown = false;
         var reveal = function () { if (shown || !w.classList.contains('open')) return; shown = true; w.classList.add('ready'); };
-        fr.onload = function () { setTimeout(reveal, blob.size > 15e6 ? 1200 : 400); };
-        setTimeout(reveal, 15000);
-        fr.src = qlBlobUrl;
-      } else {
-        // Browser tanpa penampil PDF bawaan (HP): tampilkan halaman dengan PDF.js di dalam aplikasi.
-        w.querySelector('.ql-stat').textContent = 'Menyiapkan halaman…';
-        w.querySelector('.ql-track').classList.add('busy');
-        pjShow(blob, w).catch(function () { if (w.classList.contains('open')) { qlClose(); window.open(url, '_blank', 'noopener'); } });
+        w.classList.add('native');
+        fr.onload = function () { setTimeout(reveal, blob.size > 15e6 ? 900 : 300); };
+        setTimeout(reveal, 12000);
+        fr.src = url;
+        return;
       }
-    }).catch(function (err) {
+      return pjShow(blob, w);
+    }).catch(function () {
       if (ctrl && ctrl.signal.aborted) return;
-      qlCtrl = null; qlClose();
-      window.open(url, '_blank', 'noopener'); // cadangan: buka langsung
+      qlClose(); window.open(url, '_blank', 'noopener');
     });
   }
 
-  // ----- Penampil PDF.js (HP) -----
-  var pj = { doc: null, zoom: 1, rendered: [], obs: null, base: null, token: 0 };
+  var pj = { doc: null, zoom: 1, token: 0, queue: [], busy: false, live: [], obs: null, ratio: 1.414 };
   var pjLib = null;
   function loadPdfJs() {
     if (pjLib) return pjLib;
@@ -244,79 +238,96 @@
     return pjLib;
   }
   function pjReset() {
-    pj.token++;
+    pj.token++; pj.queue = []; pj.live = []; pj.busy = false; pj.zoom = 1;
     if (pj.obs) { pj.obs.disconnect(); pj.obs = null; }
     if (pj.doc) { try { pj.doc.destroy(); } catch (e) {} pj.doc = null; }
-    pj.rendered = []; pj.zoom = 1;
     if (ql) { ql.querySelector('.ql-pages').innerHTML = ''; ql.querySelector('.ql-pg').textContent = ''; }
   }
   function pjShow(blob, w) {
-    var token = ++pj.token;
+    var token = pj.token;
     return Promise.all([loadPdfJs(), blob.arrayBuffer()]).then(function (r) {
       if (token !== pj.token) return;
-      return r[0].getDocument({ data: new Uint8Array(r[1]), standardFontDataUrl: 'js/pdfjs/standard_fonts/', isEvalSupported: false }).promise.then(function (doc) {
-        if (token !== pj.token) { doc.destroy(); return; }
-        pj.doc = doc;
-        return doc.getPage(1).then(function (page) {
-          pj.base = page.getViewport({ scale: 1 });
-          w.classList.add('pj', 'ready');
-          pjLayout(w);
-        });
+      return r[0].getDocument({ data: new Uint8Array(r[1]), standardFontDataUrl: 'js/pdfjs/standard_fonts/', isEvalSupported: false }).promise;
+    }).then(function (doc) {
+      if (!doc) return;
+      if (token !== pj.token) { doc.destroy(); return; }
+      pj.doc = doc;
+      return doc.getPage(1).then(function (page) {
+        var v = page.getViewport({ scale: 1 }); pj.ratio = v.height / v.width;
+        w.classList.add('ready');
+        pjLayout();
       });
     });
   }
-  function pjLayout(w) {
-    var box = w.querySelector('.ql-pages'), n = pj.doc.numPages, width = Math.round((box.clientWidth || w.clientWidth) - 16) * pj.zoom;
-    box.innerHTML = '';
+  function pjLayout() {
+    var box = ql.querySelector('.ql-pages'), n = pj.doc.numPages, width = Math.round((box.clientWidth - 16) * pj.zoom), html = '';
     if (pj.obs) pj.obs.disconnect();
-    pj.rendered = [];
-    var ratio = pj.base.height / pj.base.width, html = '';
-    for (var i = 1; i <= n; i++) html += '<div class="ql-page" data-p="' + i + '" style="width:' + width + 'px;height:' + Math.round(width * ratio) + 'px"></div>';
+    pj.queue = []; pj.live = [];
+    for (var i = 1; i <= n; i++) html += '<div class="ql-page" data-p="' + i + '" style="width:' + width + 'px;height:' + Math.round(width * pj.ratio) + 'px"></div>';
     box.innerHTML = html;
-    var pg = w.querySelector('.ql-pg');
+    var pg = ql.querySelector('.ql-pg'), pages = box.children;
     pj.obs = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) { if (en.isIntersecting) pjRender(en.target); });
-    }, { root: box, rootMargin: '600px 0px' });
-    box.querySelectorAll('.ql-page').forEach(function (el) { pj.obs.observe(el); });
+      entries.forEach(function (en) { if (en.isIntersecting) pjEnqueue(en.target); });
+    }, { root: box, rootMargin: '300px 0px' });
+    for (var k = 0; k < pages.length; k++) pj.obs.observe(pages[k]);
+    var tick = null;
     box.onscroll = function () {
-      var mid = box.scrollTop + box.clientHeight / 2, els = box.children, cur = 1;
-      for (var i = 0; i < els.length; i++) { if (els[i].offsetTop <= mid) cur = i + 1; else break; }
-      pg.textContent = cur + ' / ' + n;
+      if (tick) return;
+      tick = requestAnimationFrame(function () {
+        tick = null;
+        var mid = box.scrollTop + box.clientHeight / 2, lo = 0, hi = pages.length - 1;
+        while (lo < hi) { var m = (lo + hi + 1) >> 1; if (pages[m].offsetTop <= mid) lo = m; else hi = m - 1; }
+        pg.textContent = (lo + 1) + ' / ' + n;
+      });
     };
     box.onscroll();
   }
-  function pjRender(el) {
-    if (el.dataset.done || !pj.doc) return;
-    el.dataset.done = '1';
-    var token = pj.token, num = +el.dataset.p;
-    pj.doc.getPage(num).then(function (page) {
+  function pjEnqueue(el) {
+    if (el.dataset.st) return;
+    el.dataset.st = 'q'; pj.queue.push(el); pjNext();
+  }
+  function pjNext() {
+    if (pj.busy || !pj.doc) return;
+    var box = ql.querySelector('.ql-pages'), top = box.scrollTop - 400, bottom = box.scrollTop + box.clientHeight + 400;
+    // utamakan halaman yang sedang terlihat; buang antrean yang sudah jauh
+    pj.queue = pj.queue.filter(function (el) { var keep = el.offsetTop + el.offsetHeight > top && el.offsetTop < bottom; if (!keep) delete el.dataset.st; return keep; });
+    var el = pj.queue.shift(); if (!el) return;
+    pj.busy = true;
+    var token = pj.token;
+    pj.doc.getPage(+el.dataset.p).then(function (page) {
       if (token !== pj.token) return;
-      var vp1 = page.getViewport({ scale: 1 }), cssW = el.clientWidth, dpr = Math.min(window.devicePixelRatio || 1, 2);
-      var vp = page.getViewport({ scale: cssW / vp1.width * dpr });
-      el.style.height = Math.round(cssW * vp1.height / vp1.width) + 'px';
-      var cv = document.createElement('canvas'); cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+      var v1 = page.getViewport({ scale: 1 }), cssW = el.clientWidth, dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var scale = cssW / v1.width * dpr, maxPx = 4e6;
+      if (v1.width * v1.height * scale * scale > maxPx) scale = Math.sqrt(maxPx / (v1.width * v1.height));
+      var vp = page.getViewport({ scale: scale }), cv = document.createElement('canvas');
+      cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+      el.style.height = Math.round(cssW * v1.height / v1.width) + 'px';
       return page.render({ canvasContext: cv.getContext('2d', { alpha: false }), viewport: vp }).promise.then(function () {
+        page.cleanup();
         if (token !== pj.token) return;
-        el.innerHTML = ''; el.appendChild(cv);
-        pj.rendered.push(el);
-        // batasi memori: lepas halaman yang sudah jauh dari layar
-        if (pj.rendered.length > 10) {
-          var box = el.parentNode, mid = box.scrollTop + box.clientHeight / 2;
-          pj.rendered.sort(function (a, b) { return Math.abs(b.offsetTop - mid) - Math.abs(a.offsetTop - mid); });
-          while (pj.rendered.length > 8) { var old = pj.rendered.shift(); old.innerHTML = ''; delete old.dataset.done; }
+        el.innerHTML = ''; el.appendChild(cv); el.dataset.st = 'd'; pj.live.push(el);
+        if (pj.live.length > 8) {
+          var mid = box.scrollTop + box.clientHeight / 2;
+          pj.live.sort(function (a, b) { return Math.abs(b.offsetTop - mid) - Math.abs(a.offsetTop - mid); });
+          while (pj.live.length > 6) { var old = pj.live.shift(); var c = old.firstChild; if (c) { c.width = 0; c.height = 0; } old.innerHTML = ''; delete old.dataset.st; }
         }
       });
-    }).catch(function () { delete el.dataset.done; });
+    }).catch(function () { delete el.dataset.st; }).then(function () {
+      if (token !== pj.token) return;
+      pj.busy = false;
+      setTimeout(pjNext, 0);
+    });
   }
   function pjZoom(dir) {
     if (!pj.doc || !ql) return;
-    var z = Math.max(1, Math.min(3, Math.round((pj.zoom + dir * 0.5) * 2) / 2));
+    var z = Math.max(1, Math.min(3, pj.zoom + dir * 0.5));
     if (z === pj.zoom) return;
     var box = ql.querySelector('.ql-pages'), rel = box.scrollTop / Math.max(1, box.scrollHeight);
-    pj.zoom = z; pj.token++; var t = pj.token;
-    pjLayout(ql); pj.token = t;
+    pj.zoom = z; pj.token++; pj.busy = false;
+    pjLayout();
     box.scrollTop = rel * box.scrollHeight;
   }
+
   window.brOpenPdf = qlOpen;
   document.addEventListener('click', function (ev) {
     var a = ev.target.closest && ev.target.closest('a[data-pdf-title]');
@@ -325,10 +336,8 @@
     var u; try { u = new URL(a.href, location.href); } catch (e) { return; }
     if (u.origin !== location.origin) return; // berkas di situs lain: biarkan browser
     ev.preventDefault();
-    if (ql && ql.classList.contains('open')) qlClose();
-    qlOpen(u.href, a.getAttribute('data-pdf-title'), a.getAttribute('data-pdf-mb'));
+    window.brOpenPdf(u.href, a.getAttribute('data-pdf-title'), a.getAttribute('data-pdf-mb'));
   });
-
 
   document.addEventListener('click', function (ev) {
     var t = ev.target.closest && ev.target.closest('[data-reg-open],[data-open-regulasi]');
