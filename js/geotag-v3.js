@@ -50,6 +50,32 @@
         .catch(function () { return { village: '', district: '', regency: '', province: '', source: '' }; });
     });
   }
+  // ---------- Elevasi (meter di atas permukaan laut) ----------
+  // Undulasi geoid EGM96 wilayah Indonesia (95–141 BT, 11 LS–6 LU, grid 0,5°, satuan desimeter).
+  var GEOID_B64 = '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DwIOAggCBAIAAgICAALYAZYBbAGHAbkB2AH2ASsCXwKCApgCogKqArcCuwLBAsMCvwLCAssC1QLbAt8CTP5t/ov+pP7H/tf+8f4Q/yn/SP9Z/1z/Wf9i/4P/mf+X/57/2P8lAEwAbQCMAKkAugDEANQA4QDvAPsABwETARwBKQE3AUYBVAFjAXMBgAGPAZwBpgGxAbkBxwHQAdMB2AHaAfIB8gHqAf0BAgIMAgkCDAIiAigCJwIiAh4CHQIgAh4CFwIQAg0CCAL1AasBXQFsAbQB+QENAg0CPwJ/ApUCoAKoArUCvQLBAr0CtgK/As0C2QLjAuoCV/5+/pr+rP7Q/uf+AP8d/zT/SP9S/07/Wv98/6D/rP+n/8X/FgBYAHAAhwCbAK4AvwDPAN0A6wD6AAYBEwEgASsBNwFBAU4BXQFrAXsBjgGfAagBswG+AcYB1AHeAd8B6QH9AQgC/gH3ARECJQIkAiICKQI5AjICLgIxAi8CMgI3AjoCMwIqAiQCFQIOAs0BdgGBAcEBEwJEAicCLwJ8Ap4CngKlArgCxgLHAr4CvQLEAs8C3QL0Ag8DYf6D/qP+tf7X/vT+Dv8t/0D/SP9E/0f/a/+P/6f/v//Y/wkATABzAIQAkwCfALQAxQDWAOUA8gAAAQ8BFgEhATEBPAFKAVoBaQF6AYsBmwGrAboBwwHLAdUB1AHXAeEB9wEaAhwCFAIYAigCOwI+AjsCLgIuAjACMwI8Aj8CRgJDAkMCQQI2Ai4CLAIkAukBsAHBAekBGAJLAkYCPgJ+AqMCnAKjArECuwK5ArUCvgLMAuQC9gIHAysDb/6N/q3+wf7h/gH/Hf82/0v/Tf9B/1n/hf+b/7j/6P8gAFIAawB6AIwAmQCoALsAzADdAOsA+QAEARMBHQEpATcBRAFTAWMBcwGHAZkBpgGyAccB1QHdAeQB2gHQAd4B/QEeAikCIQIoAj4CSwJPAkcCKQIlAjYCOwJBAkYCRgJGAkcCQgJHAkQCRgI6AhUCAwIGAg8CLgJbAmwCawKJAqgCswK8AsUC3wLzAv4CDQMSAxMDCwMIAyADef6V/rX+z/7r/g7/Jv81/0b/Q/9F/3L/mP+u/+T/IABKAGUAcQB+AI4AmACsAMEA1gDkAO8A/wAOARsBJgEyAUABUAFhAXQBgwGVAaQBrQG3AcsB4QHtAfMB8AHhAeEB/gEhAjcCLQI+AmUCYAJWAlECNwIwAkQCSQJHAk0CSgJMAlUCTwJYAk8CQwJCAj4CNgImAiECUgKMAp0CnAKiArwC4QL0AgQDKAM9AzcDMgMqAxQDBQMFAxMDgf6Z/rz+2v7v/hH/Kv8u/y3/Nf9Z/4f/oP/E/wYAQABVAGEAcgCBAI4AmwCxAMYA1wDmAPMAAwESASIBLwE9AU0BXgFuAYEBjQGdAaYBrAG/AdcB6wH6AQYCCgIEAvoBGQJIAk4CPwJaAnsCbAJhAlwCQwI6AkkCTgJOAlkCXgJTAlcCYAJjAlYCTAJXAlsCPgIrAjYCcwKkAqoCtAK4ArwCzQLhAgEDLANBAy0DEwMGA/UC9wL4Av4Cjv6n/sf+5f71/hL/Kv8i/x7/Pv9q/4D/nv/h/yoATABUAGQAeQCIAJQAowC3AMkA2gDtAPsACgEZASkBOgFGAVQBZQF3AYgBlgGkAa8BtgHDAdwB9QEAAg4CGgIZAgkCMAJtAl8CTAJkAncCZgJQAkMCOQJDAlICVgJYAlgCWgJMAj0CQwJRAlUCVQJXAlUCSgJbAnsCoQKtAqkCrwK2Aq8CqAKzAtcC/wITAw0DAwP8AvECBAMJAwgDlv6x/s3+6P73/gv/Gv8b/y//T/9k/3//vf8MAD0ARQBMAF8AdgCMAJgApAC4AMoA2wDxAAABEQEiATIBQQFNAVsBbAF9AYwBmgGmAbgBwgHIAd4B+gEGAhUCGQIPAgkCOwJ7An0CcQJwAnECXgJIAkQCRAJJAlQCXwJsAm4CaQJeAjgCHQI1AlICYgJvAncCfwKWAqsCuQKzAqkCqwK+AsECtgKyAsEC0gLWAtkC3wLkAt4C8AL3Au4CnP64/tP+7v76/gH/Cv8s/1L/Vv9h/47/3v8hADMAOgBNAF8AdACKAJkAqQC8AM4A3wDwAAEBEgElATgBRgFTAWQBdwGKAZwBqAG1AcMBzgHcAe8B/wEIAhYCDgIAAg0COQJfAn4CjwKFAnwCZAJaAmcCZgJkAmQCbgJ6An8CcQJnAmUCUQJgAn4ClQKpArACsQK6AsICxwLDArgCuQLLAtECzgLRAtsC4ALiAu0C8gLhAsoCyALKAscCo/68/tb+9f78/vf+Df9H/17/VP9z/7H/9P8bACgAOgBOAF0AcgCEAJgAqgC+AM8A3wDuAAEBFAEpATwBSwFaAW0BgQGSAaYBsgHCAdEB2gHrAQICEwIQAhUCFgIKAg4CLQJLAnMCgAJ8ApIChwJuAmgCWAJEAi8CKQIsAiwCIQIwAmwCjAKcAq4CvAK9AsACyQLXAuAC4QLtAv0C+QLqAuMC3wLpAvMC8gLuAuoC5QLKAr8CygLPAtMCpf7C/tr+8/7y/vH+Hv9T/1r/Yv+J/8j//P8NACEANQBLAF0AbgCAAJYAqAC9AM4A3ADuAAQBFQEtAUIBUgFfAXEBiAGdAbkBxQHRAeIB7QH2AQgCGQIXAhoCJQIaAgsCKQJOAmsCaAJjAn4ChAJuAl4CLQL1Ac0BtgG5AccB3QEhAnICpgLBAsQC0QLUAtsC4wLmAv0CEwMbAx8DCwPuAvAC7wLqAuIC1ALLArwCtgK1AsEC0QLVAtgCqv7K/tn+5/7p/v/+Nf9e/2r/f/+i/9D/9v8HAB8ALABDAFcAagB/AJMApQC5AMkA2wDwAAUBFgExAUcBVgFkAXYBiQGeAbgBygHaAfABAAIIAhECHAIcAhsCKAIfAgoCHQI3AkcCUgJhAnECegJiAkMCEALpAdUBsgGkAbcB/AFtAqECtQLPAsgC2wLyAvsC+ALnAvECCwMGA/MC5QLoAvUC6gLNArcCqQKmAqYCrQK8AskC0ALWAtoCq/7M/tj+1/7d/g7/Qv9q/4P/lP+4/9j/7P/+/xQAKABAAFIAaAB9AJAAogC1AMgA3ADxAAQBGQEwAUIBUwFjAXQBhAGYAaoBxgHfAfYBDgIeAiQCJAIiAiMCIQIQAgoCGAIuAkcCVQJkAnMCdwJTAjECGwIkAh8C/AHUAdQBLwKuAtcC0gLbAt8C7wL+AgMD+wLnAtcC4ALiAuAC2gLaAtACuwKoAqYCrAKyAr0CwgLIAs0C0gLUAtMCqP7J/tP+y/7l/iL/Rv9q/43/of++/9H/4//6/xAAJQA0AEUAXQBzAIoAmwCvAMcA2wDtAAABFAEpATsBUQFjAXQBhgGcAawBxAHdAfcBEQIkAi8CNQI1AjcCKAIaAioCJAIeAkMCaAJ7AnwCcwJXAk4CUQJ4AoACXQIlAhECSAKpAucC5QLaAucC8gLuAu0C7gLuAuYC6QLkAuQC2ALHArYCsQK3ArsCvgLAAsQCxgLJAsoCzQLOAs0Cn/66/r/+xv7//jD/Q/9g/4n/qv+9/8v/4P/5/w4AIAAtAD8AVgBrAIEAlQCpAMAA1ADnAPwADgEgATIBSAFcAW8BggGXAakBvQHTAfABDQIhAjACRQJGAkECQAJBAkkCMAIXAjQCZQKAAoEChQJ3AngCeAKcArgCpQJuAkkCTQKOAsgCyALLAtQC3QLdAt4C5wLuAugC7ALoAuMC2wLRAsYCxALCAsMCxQLFAsQCxgLFAsUCxQLFAsUCj/6f/q7+zP79/hv/Nv9c/4r/sf+6/8f/3f/0/wgAGQAtAD8AUwBnAHsAjgCjALgAzgDhAPMABAEWASoBPAFRAWYBeQGMAZ8BsQHAAdkBAAIcAigCQwJNAkoCUgJJAj0CJwIVAiwCUQJnAmICYwJaAmQCbgKGAqoCuwKWAmUCRgJnApsCqgK+ArYCvQLRAt8C6ALpAukC6wLqAuMC2ALRAssCywLIAsgCxgLCAr8CwAK+Ar0CvgK+Ar4Ce/6b/r/+3v7y/gL/Lv9o/5f/tv+8/8X/2f/t//7/EAAmADkATABgAHUAhQCaALEAxgDZAOcA+AAJARwBLAFDAVcBaQF9AY0BnQGrAcMB8AEVAiICMgI9AkICRgI7Ai8CGwIOAiECNAJLAk0CTgJSAlwCbAKBAp4CwAKoAm0CMwIyAngCqwLCArUCugLUAuAC5QLiAucC5wLnAuEC1wLRAswCyQLHAsUCwQK+Ar0CugK5ArcCtQK2ArcCiv6+/t3+5f7o/vb+MP97/57/rv+1/7v/0f/m//j/CwAcAC8AQgBXAGoAegCQAKkAvgDNAN0A7wD+AA4BHQExAUUBWAFuAYcBmwGpAb0B4QEJAhsCJAIwAjwCNwIsAiICEgIVAicCMgJAAk0CWAJnAnIChgKaAqoCwwK+AoECLAIdAloCiwKuArcCvwLZAt0C4gLkAukC5gLkAt0C0gLKAscCxQLDAr8CvQK4ArYCswKxAq8CrwKuAq8CkP6x/sj+z/7i/gb/P/9y/4b/mf+q/7f/zf/h//X/BQAUACYANwBLAF4AcACFAJ8AswDDANYA5QDyAAIBEwEkATcBSwFcAXMBjQGoAcEB2QH0AQICGQIsAjYCLAIkAiMCIgItAjkCRwJQAl4CagJ6AokCmAKmArQCvQLTAqECQgIuAkgCaAKIAqICvALXAtcC3gLhAugC4QLeAtsCzwLFAsICvwK8ArcCtgKyArACrwKtAqgCpwKoAqoCb/6G/rD+zv4A/zH/RP9X/23/h/+f/7T/x//d//H/AAAOABwAKAA5AE4AYwB5AJIApQC5AMoA1QDkAPUABgEXASkBPQFQAWMBewGeAb4B0gHhAfEBFAInAiwCKAIrAi4CLQI5AkUCVAJcAmkCdQKHApECnwKqArUCtwLcArgCbwJbAmgCjQKJApcCuALNAs8C2QLTAtwC2wLbAtcCxgK+Ar0CuAK1ArMCsAKtAqoCpgKlAqICnwKgAqMCVf5+/rr+7P4f/zr/N/9J/2b/f/+X/6v/v//X/+r//P8HABIAHQAqAD4AUQBmAH4AlgCtAL4AywDbAOwA/AAOASABMwFIAVgBbQGKAakBwAHYAfEBCgIeAisCKQIqAjQCOQI+AkkCWQJkAnACegKKApMCpgKrAq4CswLcAr4CggJqAnICjAJ9ApgCtgLHAssC0gLJAtEC1gLVAtACwwK7ArkCtAKwAqwCqQKmAqMCpQKhApwCmgKZApsCT/6a/tr+CP8g/yv/NP9C/1n/dv+N/6H/tv/Q/+b/9/8BAAkAEwAeAC8AQQBXAG4AhQCeALQAwwDRAN8A7wACARYBKwE9AU8BZQF6AZQBrAHNAe0B+wERAi0COQI2AjwCTAJVAlcCWwJlAnICegKJApUCoAKkAqQCogLIAqkCagJSAkwCUwJnAp8CtALDAsUCxALAAskC0wLOAsgCvQK2ArQCrgKsAqkCpAKjAp4CngKbApcClQKTApQCXv64/tr+6/7//hr/L/87/1T/bv+C/5f/sP/O/+D/6f/0//z/BQAPAB8AMwBMAGMAdwCPAKcAtgDEANEA5QD5AAwBIgE3AUkBWAFsAYgBogG5AdIB7gEIAiACNQI7AkQCUAJhAmoCawJrAnACfgKKApMCngKfAoMCfQKjAosCRgIXAgQCKwJyAqQCswK7ArsCtwKyArkCxQLBArkCsgKsAqsCqAKmAqUCnwKbApkClwKXApMCjwKNAowCbf6s/rn+w/7f/gT/IP82/07/Yv93/43/pf/A/8z/0//i/+r/8v/8/w8AJwBCAFcAagCDAJsAqgC4AMgA3gDwAAABFQEvAT8BRAFYAXsBnQGrAboB5AEFAhsCIgImAj4CSAJWAm8ChgKAAnMCfwKHApEClwKMAnMCgQKKAnYCMgLYAd8BOQKKAqQCsgKwAqwCqwKnAqwCuAK3ArACqgKfApsCoQKjAp8CnQKYApICjQKMAooCiAKHAoYCbP6U/q/+wf7W/vj+F/8v/0P/V/9s/4P/mP+r/7b/wf/M/9b/4f/u/wQAHgA5AEwAXwB4AI4AngCtAL8A1ADkAPEAAwEdATIBOQFBAV0BhgGgAbEB0gHxARMCFgISAigCNAJAAlQCfgKZAp0CjQKBApICkgKhArUCvQKZAoECNgLEAfQBWwKSAqQCrQKqAqUCogKdAp8CqgKvAqkClwKMApAClgKbApYCkQKRAo8CjQKIAocCgwJ/AoIC', geoidGrid = null;
+  function geoidAt(lat, lon) {
+    if (lat < -11 || lat > 6 || lon < 95 || lon > 141) return null;
+    if (!geoidGrid) { var bin = atob(GEOID_B64), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); geoidGrid = new Int16Array(u.buffer); }
+    var fy = (lat + 11) / .5, fx = (lon - 95) / .5, y = Math.min(33, Math.floor(fy)), x = Math.min(91, Math.floor(fx)), dy = fy - y, dx = fx - x, W = 93;
+    var v = function (r, c) { return geoidGrid[r * W + c] / 10; };
+    return v(y, x) * (1 - dx) * (1 - dy) + v(y, x + 1) * dx * (1 - dy) + v(y + 1, x) * (1 - dx) * dy + v(y + 1, x + 1) * dx * dy;
+  }
+  // Safari (iOS) sudah memberi tinggi di atas permukaan laut; peramban lain memberi tinggi elipsoid WGS84 → dikurangi undulasi geoid.
+  var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function gpsElev(f) {
+    if (!f || f.alt == null || !isFinite(f.alt)) return null;
+    if (IOS) return { v: f.alt, acc: f.altAcc, src: 'GPS' };
+    var n = geoidAt(f.lat, f.lon); return n == null ? null : { v: f.alt - n, acc: f.altAcc, src: 'GPS' };
+  }
+  // Elevasi permukaan tanah dari model elevasi digital Copernicus (GLO-90) melalui Open-Meteo.
+  function demAt(lat, lon) {
+    var url = 'https://api.open-meteo.com/v1/elevation?latitude=' + lat.toFixed(6) + '&longitude=' + lon.toFixed(6);
+    return Promise.race([fetch(url).then(function (r) { return r.json(); }), new Promise(function (_, rej) { setTimeout(rej, 8000); })])
+      .then(function (d) { var e = d && d.elevation && d.elevation[0]; return typeof e === 'number' && isFinite(e) && e > -100 && e < 6000 ? { v: e, src: 'DEM' } : null; })
+      .catch(function () { return null; });
+  }
+  function elevText(e) { return e ? Math.round(e.v) + ' m dpl' : ''; }
+  function elevSrc(e) { return !e ? '' : e.src === 'DEM' ? 'DEM Copernicus' : e.src === 'EXIF' ? 'data foto' : 'GPS' + (e.acc ? ' ± ' + Math.round(e.acc) + ' m' : ''); }
   function placeLine(ad) { return [ad.village && 'Desa/Kel. ' + ad.village, ad.district && 'Kec. ' + ad.district, ad.regency].filter(Boolean).join(', '); }
 
   // ---------- GPS: pantau terus, ambil pembacaan terbaik ----------
@@ -58,7 +84,7 @@
     if (gps.id != null || !navigator.geolocation) return;
     gps.err = null;
     gps.id = navigator.geolocation.watchPosition(function (p) {
-      var s = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy || null, t: Date.now() };
+      var s = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy || null, alt: p.coords.altitude, altAcc: p.coords.altitudeAccuracy || null, t: Date.now() };
       gps.last = s; gps.samples.push(s); if (gps.samples.length > 40) gps.samples.shift(); gps.err = null;
       gps.subs.forEach(function (f) { f(); });
     }, function (e) { gps.err = e; gps.subs.forEach(function (f) { f(); }); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
@@ -146,6 +172,7 @@
         if (g[1] && String.fromCharCode(v.getUint8(g[1].at)) === 'S') lat = -lat;
         if (g[3] && String.fromCharCode(v.getUint8(g[3].at)) === 'W') lon = -lon;
         if (isFinite(lat) && isFinite(lon) && (lat || lon)) { res.lat = lat; res.lon = lon; }
+        if (g[6] && g[6].type === 5) { var al = rat(t + u32(g[6].at)); if (g[5] && v.getUint8(g[5].at) === 1) al = -al; if (isFinite(al)) res.alt = al; }
         if (g[0x1F] && g[0x1F].type === 5) res.acc = rat(t + u32(g[0x1F].at));
         if (g[0x11] && g[0x11].type === 5) { res.heading = rat(t + u32(g[0x11].at)); if (g[0x10] && String.fromCharCode(v.getUint8(g[0x10].at)) === 'M') res.heading = toTrue(res.heading); }
       }
@@ -252,7 +279,8 @@
     var by = dialY + 158, col = p.acc == null ? '#8e8e93' : p.acc <= GOOD ? '#30d158' : p.acc <= FAIR ? '#ffd60a' : '#ff453a';
     g.fillStyle = col; g.beginPath(); g.arc(pad + 9, by - 9, 9, 0, Math.PI * 2); g.fill();
     txt(g, 'Akurasi ' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : 'tidak tercatat'), pad + 30, by, 26, 600, '#fff');
-    txt(g, p.source || '', c2, by, 22, 400, 'rgba(255,255,255,.5)', dialX - 160 - c2);
+    txt(g, p.source || '', pad + 30, by + 40, 20, 400, 'rgba(255,255,255,.45)', cw);
+    if (p.elev) { txt(g, 'Elevasi ' + elevText(p.elev), c2, by, 26, 600, '#fff', dialX - 160 - c2); txt(g, elevSrc(p.elev), c2, by + 40, 20, 400, 'rgba(255,255,255,.45)', dialX - 160 - c2); }
     g.setTransform(1, 0, 0, 1, 0, 0);
     p.stamped = c;
     return c;
@@ -371,6 +399,8 @@
     var idx = S.photos.length - 1;
     showReview(idx);
     adminAt(p.lon, p.lat).then(function (a) { p.admin = a; stamp(p); if (S.view === 'rev') showReview(S.cur); });
+    p.elevWait = true;
+    demAt(p.lat, p.lon).then(function (e) { p.elevWait = false; if (!e) { if (S.view === 'rev' && S.photos[S.cur] === p) showReview(S.cur); return; } p.elev = e; stamp(p); if (S.view === 'rev' && S.photos[S.cur] === p) showReview(S.cur); });
   }
   function thumbOf(c) { var t = document.createElement('canvas'), s = 160 / Math.max(c.width, c.height); t.width = Math.round(c.width * s); t.height = Math.round(c.height * s); t.getContext('2d').drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', .8); }
   function tiny(c) { var t = document.createElement('canvas'); t.width = t.height = 24; var g = t.getContext('2d'); g.drawImage(c, 0, 0, 24, 24); var d = g.getImageData(0, 0, 24, 24).data, o = []; for (var i = 0; i < d.length; i += 4) o.push(d[i] + d[i + 1] + d[i + 2]); return o; }
@@ -407,7 +437,7 @@
       if (turn && screenPortrait && raw.height > raw.width) raw = rotateCanvas(raw, turn);
       if (!fix) { toast(gpsError(gps.err)); return; }
       stopCam();
-      addPhoto({ raw: raw, time: time, lat: fix.lat, lon: fix.lon, acc: fix.acc, heading: heading, source: 'GPS perangkat saat pemotretan' });
+      addPhoto({ raw: raw, time: time, lat: fix.lat, lon: fix.lon, acc: fix.acc, elev: gpsElev(fix), heading: heading, source: 'GPS perangkat saat pemotretan' });
     });
   }
   // Ambil pembacaan terbaik 10 detik terakhir; bila belum ada / masih lemah, tunggu sebentar.
@@ -433,11 +463,11 @@
       img.onload = function () {
         var raw = fitCanvas(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url);
         var time = exifDate(ex.time) || new Date(file.lastModified || Date.now());
-        if (ex.lat != null) { stopCam(); addPhoto({ raw: raw, time: time, lat: ex.lat, lon: ex.lon, acc: ex.acc != null ? ex.acc : null, heading: ex.heading != null ? ex.heading : null, source: 'Data GPS (EXIF) pada foto' }); return; }
+        if (ex.lat != null) { stopCam(); addPhoto({ raw: raw, time: time, lat: ex.lat, lon: ex.lon, acc: ex.acc != null ? ex.acc : null, elev: ex.alt != null ? { v: ex.alt, src: 'EXIF' } : null, heading: ex.heading != null ? ex.heading : null, source: 'Data GPS (EXIF) pada foto' }); return; }
         // Foto tanpa data GPS: pakai posisi perangkat, dan tandai dengan jelas di laporan.
         toast('Foto tidak menyimpan data lokasi. Koordinat diambil dari posisi perangkat saat ini.');
         S.busy = true;
-        waitFix(function (fix) { S.busy = false; if (!fix) { toast(gpsError(gps.err)); return; } stopCam(); addPhoto({ raw: raw, time: time, lat: fix.lat, lon: fix.lon, acc: fix.acc, heading: null, source: 'Posisi perangkat saat foto dipilih (foto tanpa data GPS)', noGps: true }); });
+        waitFix(function (fix) { S.busy = false; if (!fix) { toast(gpsError(gps.err)); return; } stopCam(); addPhoto({ raw: raw, time: time, lat: fix.lat, lon: fix.lon, acc: fix.acc, elev: gpsElev(fix), heading: null, source: 'Posisi perangkat saat foto dipilih (foto tanpa data GPS)', noGps: true }); });
       };
       img.onerror = function () { URL.revokeObjectURL(url); toast('Berkas ini bukan gambar yang dapat dibaca.'); };
       img.src = url;
@@ -464,6 +494,7 @@
       row('Lokasi', ad ? esc(placeLine(ad) || 'Tidak diketahui') : '<i class="gt-wait">Mencari desa…</i>')
       + row('Koordinat', p.lat.toFixed(6) + ', ' + p.lon.toFixed(6))
       + row('TM-3 ' + m.zone, 'X ' + idNum(m.x) + ' · Y ' + idNum(m.y))
+      + row('Elevasi', p.elev ? elevText(p.elev) + ' <small class="gt-sm">' + elevSrc(p.elev) + '</small>' : '<i class="gt-wait">' + (p.elevWait ? 'Mencari elevasi…' : 'Tidak tersedia') + '</i>')
       + row('Akurasi', p.acc != null ? accText(p.acc) + (p.acc > FAIR ? ' — lemah' : p.acc > GOOD ? ' — cukup' : ' — baik') : 'Tidak tercatat', accCls)
       + (p.heading != null ? row('Arah kamera', Math.round(p.heading) + '° ' + (exactCardinal(p.heading) ? 'Tepat ' + exactCardinal(p.heading) : dirName(p.heading)) + ' <small class="gt-sm">dari utara sejati</small>', exactCardinal(p.heading) ? 'acc-good' : '') : '')
       + row('Waktu', esc(fmtDate(p.time)) + ', ' + fmtTime(p.time) + ' ' + tzName(p.time))
@@ -531,6 +562,7 @@
         + '<td>X ' + idNum(m.x) + ' · Y ' + idNum(m.y) + '<small>TM-3 zona ' + m.zone + '</small></td>'
         + '<td class="c">' + (p.heading != null ? arrowSvg(p.heading) + Math.round(p.heading) + '°<small' + (exactCardinal(p.heading) ? ' class="ok">Tepat ' + exactCardinal(p.heading) : '>' + dirName(p.heading)) + '</small>' : '–') + '</td>'
         + '<td class="c">' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : '–') + '<small>' + (p.noGps ? 'posisi perangkat' : p.source.indexOf('EXIF') >= 0 ? 'data foto' : 'GPS') + '</small></td>'
+        + '<td class="c">' + (p.elev ? elevText(p.elev) + '<small>' + (p.elev.src === 'DEM' ? 'DEM' : elevSrc(p.elev)) + '</small>' : '–') + '</td>'
         + '<td class="c">' + fmtTime(p.time) + '<small>' + p.time.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + '</small></td></tr>';
     }).join('');
     var marks = JSON.stringify(ps.map(function (p) { return [p.lat, p.lon]; }));
@@ -544,6 +576,7 @@
         + '<span>Bujur</span><b>' + p0.lon.toFixed(6) + '<small>' + dms(p0.lon, 'BT', 'BB') + '</small></b>'
         + '<span>TM-3 ' + m0.zone + '</span><b>X ' + idNum(m0.x) + '<small>Y ' + idNum(m0.y) + '</small></b>'
         + '<span>Arah</span><b' + (ec ? ' class="ok"' : '') + '>' + (p0.heading != null ? arrowSvg(p0.heading) + Math.round(p0.heading) + '° ' + (ec ? 'Tepat ' + ec : dirName(p0.heading)) : '–') + '</b>'
+        + '<span>Elevasi</span><b>' + (p0.elev ? elevText(p0.elev) + '<small>' + elevSrc(p0.elev) + '</small>' : '–') + '</b>'
         + '<span>Akurasi</span><b>' + (p0.acc != null ? '± ' + Math.round(p0.acc) + ' m' : '–') + '</b>'
         + '</div></div>';
     }
@@ -577,7 +610,7 @@
           + '<a class="card qrc" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<b>Buka di Google Maps</b><span>Pindai atau klik kode ini</span></a></section>'
         : '<section class="photos">' + photos + '</section><section class="cards">' + mapCard + lokCard
           + '<a class="card qrc" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<b>Buka di Google Maps</b><span>Pindai atau klik' + (n > 1 ? ' · titik foto 1' : '') + '</span></a></section>')
-      + (hero ? '' : '<table><thead><tr><th></th><th>Lintang, Bujur (WGS84)</th><th>Koordinat TM-3</th><th class="c">Arah (U. sejati)</th><th class="c">Akurasi</th><th class="c">Waktu</th></tr></thead><tbody>' + rows + '</tbody></table>')
+      + (hero ? '' : '<table><thead><tr><th></th><th>Lintang, Bujur (WGS84)</th><th>Koordinat TM-3</th><th class="c">Arah (U. sejati)</th><th class="c">Akurasi</th><th class="c">Elevasi</th><th class="c">Waktu</th></tr></thead><tbody>' + rows + '</tbody></table>')
       + (note ? '<div class="note"><h3>Keterangan</h3><p>' + esc(note) + '</p></div>' : '')
       + '<footer class="ft"><span>' + (officer ? 'Petugas: ' + esc(officer) + ' · ' : '') + 'Dibuat ' + esc(new Date().toLocaleString('id-ID')) + '</span><a href="' + esc(base) + '">' + esc(base.replace(/^https?:\/\//, '').replace(/\/$/, '')) + '</a></footer></div>'
       + '<script src="' + abs('js/leaflet.js') + '"><\/script><script>(function(){var pts=' + marks + ',name=' + JSON.stringify(fileName) + ';document.title=name;'
