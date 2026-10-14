@@ -19,11 +19,12 @@
       n = a / Math.sqrt(1 - e2 * sin * sin), t = tan * tan, c = ep2 * cos * cos, A = cos * lam, e4 = e2 * e2, e6 = e4 * e2,
       m = a * ((1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256) * phi - (3 * e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024) * Math.sin(2 * phi) + (15 * e4 / 256 + 45 * e6 / 1024) * Math.sin(4 * phi) - (35 * e6 / 3072) * Math.sin(6 * phi));
     return { zone: zone,
-      x: Math.round(200000 + k0 * n * (A + (1 - t + c) * Math.pow(A, 3) / 6 + (5 - 18 * t + t * t + 72 * c - 58 * ep2) * Math.pow(A, 5) / 120)),
-      y: Math.round(1500000 + k0 * (m + n * tan * (A * A / 2 + (5 - t + 9 * c + 4 * c * c) * Math.pow(A, 4) / 24 + (61 - 58 * t + t * t + 600 * c - 330 * ep2) * Math.pow(A, 6) / 720))) };
+      x: r3(200000 + k0 * n * (A + (1 - t + c) * Math.pow(A, 3) / 6 + (5 - 18 * t + t * t + 72 * c - 58 * ep2) * Math.pow(A, 5) / 120)),
+      y: r3(1500000 + k0 * (m + n * tan * (A * A / 2 + (5 - t + 9 * c + 4 * c * c) * Math.pow(A, 4) / 24 + (61 - 58 * t + t * t + 600 * c - 330 * ep2) * Math.pow(A, 6) / 720))) };
   }
   function dms(v, pos, neg) { var h = v < 0 ? neg : pos, a = Math.abs(v), d = Math.floor(a), mf = (a - d) * 60, m = Math.floor(mf), s = (mf - m) * 60; return d + '°' + pad(m) + "'" + s.toFixed(2).replace('.', ',') + '"' + h; }
-  function idNum(n) { return Number(n).toLocaleString('id-ID'); }
+  function r3(v) { return Math.round(v * 1000) / 1000; }
+  function idNum(n) { return Number(n).toLocaleString('id-ID', { minimumFractionDigits: 3, maximumFractionDigits: 3 }); }
   var DIRS = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut'];
   // Kompas HP mengacu ke utara magnetis; dikoreksi deklinasi magnetis NTB (± 1° ke timur, perkiraan WMM 2025)
   // sehingga arah yang dicatat mengacu ke UTARA SEJATI (utara geografis).
@@ -231,56 +232,67 @@
     } catch (e) { return false; }
   }
   function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  // Kartu kaca gelap di atas foto (desain A2): TM-3 ditonjolkan, QR lokasi di kanan.
+  var CANVAS_FILTER = (function () { try { var g = document.createElement('canvas').getContext('2d'); g.filter = 'blur(2px)'; return g.filter === 'blur(2px)'; } catch (e) { return false; } })();
   function stamp(p) {
-    // Panel dirancang pada lebar logis 1440 lalu digambar pada resolusi keluaran (OUT_W) agar teks tetap tajam.
-    var OUT_W = Math.min(2160, Math.max(1440, p.raw.width)), k = OUT_W / 1440;
-    var W = 1440, src = p.raw, phL = src.height * W / src.width, pad = 72;
-    var target = phL > W * 1.05 ? W * 16 / 9 : phL < W * 0.95 ? W * 5 / 4 : W * 1.45;
-    var P = Math.round(Math.max(600, Math.min(780, target - phL))), extra = P - 600, gap = extra / 3;
-    var PH = Math.round(src.height * OUT_W / src.width);
-    var c = document.createElement('canvas'); c.width = OUT_W; c.height = PH + Math.round(P * k);
-    var g = c.getContext('2d');
-    g.imageSmoothingQuality = 'high';
-    g.drawImage(src, 0, 0, OUT_W, PH);
-    g.setTransform(k, 0, 0, k, 0, PH);
-    var ph = 0;
-    g.fillStyle = '#111214'; g.fillRect(0, -1, W, P + 2);
-    var ad = p.admin || {}, m = tm3(p.lon, p.lat, ad.regency), y0 = ph + gap * 0.9;
-    // baris atas: tanggal & waktu | merek
-    txt(g, fmtDate(p.time), pad, y0 + 92, 30, 500, 'rgba(255,255,255,.72)');
-    txt(g, fmtTime(p.time) + ' ' + tzName(p.time), pad, y0 + 158, 58, 300, '#fff');
-    var L = logo(), lx = W - pad - 300;
-    if (L.complete && L.naturalWidth) g.drawImage(L, lx, y0 + 64, 76, 76);
-    txt(g, 'Bale Ruang NTB', lx + 92, y0 + 100, 30, 600, '#fff');
-    txt(g, 'Dokumentasi Geotag', lx + 92, y0 + 134, 22, 400, 'rgba(255,255,255,.55)');
-    g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(pad, y0 + 200, W - pad * 2, 2);
-    // kolom: lokasi | koordinat | arah
-    var cy = y0 + 262 + gap * 0.6, cw = 430, c2 = pad + cw + 50, dialX = W - pad - 128, dialY = cy + 110;
-    txt(g, 'LOKASI', pad, cy, 19, 600, 'rgba(255,255,255,.45)');
-    txt(g, ad.village ? 'Desa/Kel. ' + ad.village : 'Lokasi tidak diketahui', pad, cy + 50, 34, 600, '#fff', cw);
-    txt(g, ad.district ? 'Kec. ' + ad.district : '', pad, cy + 94, 26, 400, 'rgba(255,255,255,.75)', cw);
-    txt(g, ad.regency || ad.province || '', pad, cy + 132, 26, 400, 'rgba(255,255,255,.75)', cw);
-    txt(g, 'KOORDINAT', c2, cy, 19, 600, 'rgba(255,255,255,.45)');
-    txt(g, p.lat.toFixed(6) + ', ' + p.lon.toFixed(6), c2, cy + 50, 34, 500, '#fff', dialX - 150 - c2);
-    txt(g, dms(p.lat, 'LU', 'LS') + '  ' + dms(p.lon, 'BT', 'BB'), c2, cy + 94, 24, 400, 'rgba(255,255,255,.75)', dialX - 150 - c2);
-    txt(g, 'TM-3 ' + m.zone + '   X ' + idNum(m.x) + '   Y ' + idNum(m.y), c2, cy + 132, 24, 400, 'rgba(255,255,255,.75)', dialX - 150 - c2);
-    // QR lokasi (dapat dipindai) menggantikan kompas; derajat arah tetap ditulis di bawahnya.
-    var qs = 212, qx = dialX - qs / 2, qy = dialY - qs / 2 - 14;
-    if (!drawQr(g, mapsUrl(p), qx, qy, qs)) dial(g, dialX, dialY, 112, p.heading);
-    var ex = exactCardinal(p.heading), hy = dialY + 158;
-    if (p.heading == null) txt(g, 'Arah tidak tersedia', dialX, hy, 24, 500, 'rgba(255,255,255,.5)', 300, 'center');
-    else {
-      var label = Math.round(p.heading) + '° ' + (ex ? 'Tepat ' + ex : dirName(p.heading));
-      g.font = '600 26px ' + FONT; var tw = g.measureText(label).width + 34, tx = dialX - tw / 2;
-      g.save(); g.translate(tx + 12, hy - 9); g.rotate(p.heading * Math.PI / 180); g.fillStyle = ex ? '#30d158' : '#0a84ff'; g.beginPath(); g.moveTo(0, -11); g.lineTo(7, 9); g.lineTo(0, 5); g.lineTo(-7, 9); g.closePath(); g.fill(); g.restore();
-      txt(g, label, tx + 34, hy, 26, 600, ex ? '#30d158' : '#fff');
+    // Dirancang pada lebar logis 1440 lalu digambar pada resolusi keluaran (OUT_W) agar teks tetap tajam.
+    var src = p.raw, OUT_W = Math.min(2160, Math.max(1440, src.width)), k = OUT_W / 1440, W = 1440;
+    // Foto sangat lebar (panorama) diberi ruang gelap di bawahnya agar kartu tidak menutupi seluruh foto.
+    var PH = Math.round(src.height * OUT_W / src.width), H = Math.max(PH / k, 700);
+    var c = document.createElement('canvas'); c.width = OUT_W; c.height = Math.round(H * k);
+    var g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+    if (PH < c.height) {
+      var sc = c.height / PH;
+      if (CANVAS_FILTER) { g.filter = 'blur(' + Math.round(40 * k) + 'px)'; g.drawImage(src, (OUT_W - OUT_W * sc) / 2, 0, OUT_W * sc, c.height); g.filter = 'none'; }
+      g.fillStyle = CANVAS_FILTER ? 'rgba(10,10,12,.55)' : '#111214'; g.fillRect(0, 0, c.width, c.height);
     }
-    // baris bawah: akurasi & sumber (sejajar teks di bawah kompas)
-    var by = dialY + 158, col = p.acc == null ? '#8e8e93' : p.acc <= GOOD ? '#30d158' : p.acc <= FAIR ? '#ffd60a' : '#ff453a';
-    g.fillStyle = col; g.beginPath(); g.arc(pad + 9, by - 9, 9, 0, Math.PI * 2); g.fill();
-    txt(g, 'Akurasi ' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : 'tidak tercatat'), pad + 30, by, 26, 600, '#fff');
-    txt(g, p.source || '', pad + 30, by + 40, 20, 400, 'rgba(255,255,255,.45)', cw);
-    if (p.elev) { txt(g, 'Elevasi ' + elevText(p.elev), c2, by, 26, 600, '#fff', dialX - 160 - c2); txt(g, elevSrc(p.elev), c2, by + 40, 20, 400, 'rgba(255,255,255,.45)', dialX - 160 - c2); }
+    g.drawImage(src, 0, 0, OUT_W, PH);
+    var snap = null; if (CANVAS_FILTER) { snap = document.createElement('canvas'); snap.width = c.width; snap.height = c.height; snap.getContext('2d').drawImage(c, 0, 0); }
+    var ad = p.admin || {}, m = tm3(p.lon, p.lat, ad.regency);
+    var M = 40, CH = 470, x = M, w = W - 2 * M, y = H - M - CH, pad = 44;
+    // kaca: foto diburamkan + lapisan gelap
+    g.save(); g.scale(k, k); roundRect(g, x, y, w, CH, 36); g.clip();
+    if (CANVAS_FILTER) { g.filter = 'blur(30px) saturate(115%)'; g.drawImage(snap, 0, 0, W, H); g.filter = 'none'; }
+    g.fillStyle = CANVAS_FILTER ? 'rgba(10,10,12,.76)' : 'rgba(14,14,16,.84)'; g.fillRect(x, y, w, CH);
+    g.restore();
+    g.setTransform(k, 0, 0, k, 0, 0);
+    roundRect(g, x + .75, y + .75, w - 1.5, CH - 1.5, 36); g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1.5; g.stroke();
+    var L = logo(), R = x + w - pad, lab = function (s, lx, ly) { txt(g, s, lx, ly, 18, 700, 'rgba(255,255,255,.5)'); };
+    // kepala: merek | tanggal & waktu
+    if (L.complete && L.naturalWidth) g.drawImage(L, x + pad, y + 30, 52, 52);
+    txt(g, 'Bale Ruang NTB', x + pad + 68, y + 56, 26, 600, '#fff');
+    txt(g, 'Dokumentasi Geotag', x + pad + 68, y + 84, 20, 400, 'rgba(255,255,255,.6)');
+    txt(g, fmtDate(p.time), R, y + 52, 22, 500, 'rgba(255,255,255,.7)', 520, 'right');
+    txt(g, fmtTime(p.time) + ' ' + tzName(p.time), R, y + 86, 30, 600, '#fff', 520, 'right');
+    g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(x + pad, y + 112, w - 2 * pad, 1.5);
+    // TM-3: Zona | X | Y
+    var qs = 236, qx = R - qs, cy = y + 168, L0 = x + pad, LW = qx - 40 - L0;
+    lab('ZONA TM-3', L0, cy); txt(g, String(m.zone), L0, cy + 60, 50, 600, '#fff', 130);
+    lab('X (TIMUR)', L0 + 150, cy); txt(g, idNum(m.x), L0 + 150, cy + 60, 50, 600, '#fff', 360);
+    lab('Y (UTARA)', L0 + 530, cy); txt(g, idNum(m.y), L0 + 530, cy + 60, 50, 600, '#fff', LW - 530);
+    g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(L0, cy + 92, LW, 1.5);
+    // lokasi + koordinat geografis
+    var place = [ad.village && 'Desa/Kel. ' + ad.village, ad.district && 'Kec. ' + ad.district].filter(Boolean).join(', ') || (p.admin ? 'Lokasi tidak diketahui' : 'Mencari lokasi…');
+    txt(g, place, L0, cy + 142, 28, 600, '#fff', LW);
+    txt(g, [ad.regency, ad.province].filter(Boolean).concat([p.lat.toFixed(6) + ', ' + p.lon.toFixed(6)]).join('   ·   '), L0, cy + 178, 21, 400, 'rgba(255,255,255,.65)', LW);
+    // QR lokasi
+    if (!drawQr(g, mapsUrl(p), qx, cy - 28, qs)) dial(g, qx + qs / 2, cy - 28 + qs / 2, qs / 2 - 10, p.heading);
+    var fy = y + CH - 34;
+    txt(g, 'Pindai lokasi', qx + qs / 2, fy, 18, 500, 'rgba(255,255,255,.55)', qs, 'center');
+    // baris bawah: Elevasi · Akurasi · Arah (+ peringatan sumber bila foto tanpa GPS)
+    var fx = L0, item = function (label, val, col) {
+      if (label) { txt(g, label, fx, fy, 23, 500, 'rgba(255,255,255,.6)'); g.font = '500 23px ' + FONT; fx += g.measureText(label).width + 10; }
+      txt(g, val, fx, fy, 23, 600, col || '#fff'); g.font = '600 23px ' + FONT; fx += g.measureText(val).width + 44;
+    };
+    if (p.elev) item('Elevasi', elevText(p.elev));
+    var ac = p.acc == null ? '#8e8e93' : p.acc <= GOOD ? '#30d158' : p.acc <= FAIR ? '#ffd60a' : '#ff453a';
+    item('Akurasi', p.acc != null ? '± ' + Math.round(p.acc) + ' m' : '–', p.acc != null && p.acc > FAIR ? ac : null);
+    if (p.heading != null) {
+      var ex = exactCardinal(p.heading), col = ex ? '#30d158' : '#0a84ff';
+      g.save(); g.translate(fx + 10, fy - 9); g.rotate(p.heading * Math.PI / 180); g.fillStyle = col; g.beginPath(); g.moveTo(0, -11); g.lineTo(7, 9); g.lineTo(0, 5); g.lineTo(-7, 9); g.closePath(); g.fill(); g.restore();
+      fx += 28; item('', Math.round(p.heading) + '° ' + (ex ? 'Tepat ' + ex : dirName(p.heading)), ex ? '#30d158' : null);
+    }
+    if (p.noGps && fx < qx - 120) txt(g, 'Foto tanpa GPS', fx, fy, 21, 600, '#ffd60a', qx - 40 - fx);
     g.setTransform(1, 0, 0, 1, 0, 0);
     p.stamped = c;
     return c;
