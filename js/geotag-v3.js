@@ -269,7 +269,6 @@
       '<section class="gt-cam">'
       + '<video class="gt-video" playsinline muted autoplay></video><div class="gt-camerr" hidden><i class="fas fa-video-slash"></i><b>Kamera tidak dapat dibuka</b><span class="gt-camerr-t"></span></div>'
       + '<div class="gt-top"><button type="button" class="gt-round gt-x" aria-label="Tutup">' + ICON.close + '</button>'
-      + '<button type="button" class="gt-chip gt-native" aria-label="Pakai kamera bawaan HP"><i class="fas fa-mobile-alt"></i><b>Kamera HP</b></button>'
       + '<span class="gt-chip gt-gps none"><i></i><b>Mencari GPS…</b></span><span class="gt-chip gt-dir" hidden></span></div>'
       + '<div class="gt-hint"></div>'
       + '<div class="gt-bottom"><button type="button" class="gt-round gt-gal" aria-label="Pilih dari galeri">' + ICON.img + '</button>'
@@ -288,15 +287,13 @@
       + '<label><span>Petugas</span><input class="gt-in-off" maxlength="60" placeholder="Opsional"></label></div>'
       + '<p class="gt-foot">Koordinat dikunci saat foto diambil. Akurasi di bawah ± ' + GOOD + ' m sangat baik; di atas ± ' + FAIR + ' m sebaiknya ulangi di area terbuka.</p></div>'
       + '<footer class="gt-actions"><button type="button" class="gt-btn gt-save"><i class="fas fa-download"></i> Simpan foto</button><button type="button" class="gt-btn gt-primary gt-pdf"><i class="fas fa-file-pdf"></i> Buat PDF</button></footer>'
-      + '</section><input type="file" class="gt-file" accept="image/jpeg,image/*" hidden><input type="file" class="gt-native-in" accept="image/*" capture="environment" hidden>';
+      + '</section><input type="file" class="gt-file" accept="image/jpeg,image/*" hidden>';
     document.body.appendChild(el); S.el = el;
     $('.gt-x', el).onclick = closeAll;
     $('.gt-done', el).onclick = closeAll;
     $('.gt-back', el).onclick = function () { showCam(); };
     $('.gt-shutter', el).onclick = shoot;
     $('.gt-gal', el).onclick = function () { $('.gt-file', el).click(); };
-    $('.gt-native', el).onclick = function () { gpsStart(); $('.gt-native-in', el).click(); };
-    $('.gt-native-in', el).onchange = function () { var f = this.files && this.files[0]; this.value = ''; if (f) fromNative(f); };
     $('.gt-file', el).onchange = function () { var f = this.files && this.files[0]; this.value = ''; if (f) fromFile(f); };
     $('.gt-thumb', el).onclick = function () { showReview(S.photos.length - 1); };
     $('.gt-del', el).onclick = function () { removePhoto(S.cur); };
@@ -413,23 +410,6 @@
       addPhoto({ raw: raw, time: time, lat: fix.lat, lon: fix.lon, acc: fix.acc, heading: heading, source: 'GPS perangkat saat pemotretan' });
     });
   }
-  // Kamera bawaan HP (kualitas penuh: HDR, mode malam). Koordinat dikunci saat foto kembali ke aplikasi.
-  function fromNative(file) {
-    var rd = new FileReader();
-    rd.onload = function () {
-      var ex = readExif(rd.result) || {}, url = URL.createObjectURL(file), img = new Image();
-      img.onload = function () {
-        var raw = fitCanvas(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url);
-        var time = exifDate(ex.time) || new Date();
-        if (ex.lat != null) { stopCam(); addPhoto({ raw: raw, time: time, lat: ex.lat, lon: ex.lon, acc: ex.acc != null ? ex.acc : null, heading: ex.heading != null ? ex.heading : null, source: 'GPS kamera HP (data foto)' }); return; }
-        S.busy = true;
-        waitFix(function (fix) { S.busy = false; if (!fix) { toast(gpsError(gps.err)); return; } stopCam(); addPhoto({ raw: raw, time: time, lat: fix.lat, lon: fix.lon, acc: fix.acc, heading: ex.heading != null ? ex.heading : null, source: 'GPS perangkat saat memotret dengan kamera HP' }); });
-      };
-      img.onerror = function () { URL.revokeObjectURL(url); toast('Foto dari kamera HP tidak dapat dibaca.'); };
-      img.src = url;
-    };
-    rd.readAsArrayBuffer(file.slice(0, 256 * 1024));
-  }
   // Ambil pembacaan terbaik 10 detik terakhir; bila belum ada / masih lemah, tunggu sebentar.
   function waitFix(cb) {
     var best = gpsBest(10000);
@@ -539,6 +519,8 @@
     var cellH = cellW * ratio, cap = n === 1 ? 128 : (rowsN > 1 ? 100 : 122);
     if (cellH * rowsN + GAP * (rowsN - 1) > cap) cellH = (cap - GAP * (rowsN - 1)) / rowsN;
     var photoH = Math.round(cellH * rowsN + GAP * (rowsN - 1));
+    // Potret tunggal: foto & peta berdampingan, lebar sama; tinggi mengikuti rasio foto (maks 140 mm).
+    var heroW = (FULL - GAP) / 2, noteH = note ? 13 + 4.2 * note.split('\n').reduce(function (a, l) { return a + Math.max(1, Math.ceil(l.length / 105)); }, 0) : 0, heroH = Math.round(Math.max(100, Math.min(heroW * ratio * 1.14, 150, 272 - 98 - noteH))), heroFit = Math.abs(ratio / (heroH / heroW) - 1) < .2 ? 'cover' : 'contain';
     var photos = ps.map(function (p, k) {
       return '<figure class="ph"><img src="' + pdfImage(p.raw) + '" alt="Foto ' + (k + 1) + '">' + (n > 1 ? '<span class="no">' + (k + 1) + '</span>' : '') + '</figure>';
     }).join('');
@@ -554,6 +536,17 @@
     var marks = JSON.stringify(ps.map(function (p) { return [p.lat, p.lon]; }));
     var mapCard = '<div class="card mapc"><div id="map"></div><span class="north">U</span></div>';
     var lokCard = '<div class="card"><h3>Lokasi</h3><div class="kv"><span>Desa/Kel.</span><b>' + esc(ad.village || '–') + '</b><span>Kecamatan</span><b>' + esc(ad.district || '–') + '</b><span>Kab/Kota</span><b>' + esc(ad.regency || '–') + '</b><span>Provinsi</span><b>' + esc(ad.province || '–') + '</b>' + (hero ? '' : '<span>Jumlah foto</span><b>' + n + '</b>') + '</div></div>';
+    var coCard = '';
+    if (hero) {
+      var m0 = tm3(p0.lon, p0.lat, ad.regency), ec = p0.heading != null && exactCardinal(p0.heading);
+      coCard = '<div class="card"><h3>Koordinat</h3><div class="kv co">'
+        + '<span>Lintang</span><b>' + p0.lat.toFixed(6) + '<small>' + dms(p0.lat, 'LU', 'LS') + '</small></b>'
+        + '<span>Bujur</span><b>' + p0.lon.toFixed(6) + '<small>' + dms(p0.lon, 'BT', 'BB') + '</small></b>'
+        + '<span>TM-3 ' + m0.zone + '</span><b>X ' + idNum(m0.x) + '<small>Y ' + idNum(m0.y) + '</small></b>'
+        + '<span>Arah</span><b' + (ec ? ' class="ok"' : '') + '>' + (p0.heading != null ? arrowSvg(p0.heading) + Math.round(p0.heading) + '° ' + (ec ? 'Tepat ' + ec : dirName(p0.heading)) : '–') + '</b>'
+        + '<span>Akurasi</span><b>' + (p0.acc != null ? '± ' + Math.round(p0.acc) + ' m' : '–') + '</b>'
+        + '</div></div>';
+    }
     var css = '@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box}html,body{margin:0}body{color:#1d1d1f;font:8.6pt/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
       + '.page{display:flex;flex-direction:column;height:272mm}'
       + '.hd{display:flex;align-items:center;justify-content:space-between;padding-bottom:3mm;border-bottom:.25mm solid #d2d2d7}.brand{display:flex;align-items:center;gap:2.6mm}.brand img{width:8.5mm;height:8.5mm}.brand b{display:block;font-size:10pt;font-weight:600}.brand span{color:#86868b;font-size:7pt}'
@@ -561,7 +554,8 @@
       + '.tt{display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;margin:5mm 0 4mm}h1{margin:0;font-size:15pt;font-weight:600;letter-spacing:-.01em}.tt p{margin:1mm 0 0;color:#6e6e73;font-size:8.6pt}.date{text-align:right;white-space:nowrap}.date b{display:block;font-size:11pt;font-weight:500;font-variant-numeric:tabular-nums}.date span{color:#86868b;font-size:7.4pt}'
       + '.photos{display:grid;gap:' + GAP + 'mm;height:' + photoH + 'mm;grid-template-columns:repeat(' + cols + ',1fr);grid-template-rows:repeat(' + rowsN + ',1fr)}'
       + (n > 1 ? '.photos{flex:1 1 auto;height:auto;min-height:' + photoH + 'mm;max-height:' + Math.round(photoH * (n === 3 ? 1.9 : 1.6)) + 'mm}' : '')
-      + '.hero{flex:1 1 auto;display:grid;grid-template-columns:96mm 1fr;gap:3mm;min-height:128mm;max-height:170mm}.hero .ph{height:auto}.hero .ph img{object-fit:cover}.side{display:grid;grid-template-rows:1fr auto 30mm;gap:3mm;min-height:0}.side .mapc{min-height:58mm}.side .card{height:auto}.qrc.row{flex-direction:row;justify-content:flex-start;gap:3.5mm;text-align:left}.qrc.row svg{width:22mm;height:22mm;flex:0 0 22mm}.qrc.row b{margin-top:0}.qrc.row div{display:flex;flex-direction:column}'
+      + '.hero{display:grid;grid-template-columns:1fr 1fr;gap:3mm;height:' + heroH + 'mm}.hero .ph,.hero .mapc{height:100%}.hero .ph img{object-fit:' + heroFit + '}'
+      + '.kv.co{gap:1mm 3mm}.kv.co b small{display:block;color:#86868b;font-size:6.4pt;font-weight:400}.kv b.ok{color:#248a3d}'
       + '.ph{position:relative;margin:0;border-radius:2.5mm;overflow:hidden;background:#f5f5f7}.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:' + (n === 1 ? 'contain' : 'cover') + '}'
       + '.ph .no{position:absolute;left:2mm;top:2mm;width:5.6mm;height:5.6mm;border-radius:50%;background:rgba(255,255,255,.94);font-size:7.6pt;font-weight:600;display:grid;place-items:center;box-shadow:0 .2mm .8mm rgba(0,0,0,.25)}'
       + '.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:4mm;height:54mm}'
@@ -579,10 +573,11 @@
       + '<header class="hd"><div class="brand"><img src="' + abs('images/bale-ruang-ntb-logo-v3.png') + '" alt=""><div><b>Bale Ruang NTB</b><span>Satu Tempat, Seluruh Informasi Ruang</span></div></div><div class="meta"><b>DOKUMENTASI GEOTAG</b>No. ' + esc(docNo) + '</div></header>'
       + '<section class="tt"><div><h1>' + esc(title || 'Dokumentasi Geotag') + '</h1><p>' + esc(place || 'Lokasi pada koordinat di bawah') + '</p></div><div class="date"><b>' + fmtTime(p0.time) + ' ' + tzName(p0.time) + '</b><span>' + esc(fmtDate(p0.time)) + '</span></div></section>'
       + (hero
-        ? '<section class="hero"><figure class="ph">' + photos.replace(/^<figure class="ph">|<\/figure>$/g, '') + '</figure><div class="side">' + mapCard + lokCard + '<a class="card qrc row" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<div><b>Buka di Google Maps</b><span>Pindai atau klik kode ini</span></div></a></div></section>'
+        ? '<section class="hero">' + photos + mapCard + '</section><section class="cards">' + lokCard + coCard
+          + '<a class="card qrc" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<b>Buka di Google Maps</b><span>Pindai atau klik kode ini</span></a></section>'
         : '<section class="photos">' + photos + '</section><section class="cards">' + mapCard + lokCard
           + '<a class="card qrc" href="' + esc(maps) + '" target="_blank" rel="noopener">' + qrSvg(maps) + '<b>Buka di Google Maps</b><span>Pindai atau klik' + (n > 1 ? ' · titik foto 1' : '') + '</span></a></section>')
-      + '<table><thead><tr><th></th><th>Lintang, Bujur (WGS84)</th><th>Koordinat TM-3</th><th class="c">Arah (U. sejati)</th><th class="c">Akurasi</th><th class="c">Waktu</th></tr></thead><tbody>' + rows + '</tbody></table>'
+      + (hero ? '' : '<table><thead><tr><th></th><th>Lintang, Bujur (WGS84)</th><th>Koordinat TM-3</th><th class="c">Arah (U. sejati)</th><th class="c">Akurasi</th><th class="c">Waktu</th></tr></thead><tbody>' + rows + '</tbody></table>')
       + (note ? '<div class="note"><h3>Keterangan</h3><p>' + esc(note) + '</p></div>' : '')
       + '<footer class="ft"><span>' + (officer ? 'Petugas: ' + esc(officer) + ' · ' : '') + 'Dibuat ' + esc(new Date().toLocaleString('id-ID')) + '</span><a href="' + esc(base) + '">' + esc(base.replace(/^https?:\/\//, '').replace(/\/$/, '')) + '</a></footer></div>'
       + '<script src="' + abs('js/leaflet.js') + '"><\/script><script>(function(){var pts=' + marks + ',name=' + JSON.stringify(fileName) + ';document.title=name;'
