@@ -156,7 +156,7 @@
 
   // ---------- Foto + cap ----------
   function fitCanvas(src, w, h) {
-    var max = 2400, s = Math.min(1, max / Math.max(w, h)), c = document.createElement('canvas');
+    var max = 3200, s = Math.min(1, max / Math.max(w, h)), c = document.createElement('canvas');
     c.width = Math.round(w * s); c.height = Math.round(h * s);
     c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
     return c;
@@ -205,13 +205,19 @@
   }
   function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   function stamp(p) {
-    var W = 1440, src = p.raw, ph = Math.round(src.height * W / src.width), pad = 72;
-    var target = ph > W * 1.05 ? W * 16 / 9 : ph < W * 0.95 ? W * 5 / 4 : W * 1.45;
-    var P = Math.round(Math.max(600, Math.min(780, target - ph))), extra = P - 600, gap = extra / 3;
-    var c = document.createElement('canvas'); c.width = W; c.height = ph + P;
+    // Panel dirancang pada lebar logis 1440 lalu digambar pada resolusi keluaran (OUT_W) agar teks tetap tajam.
+    var OUT_W = Math.min(2160, Math.max(1440, p.raw.width)), k = OUT_W / 1440;
+    var W = 1440, src = p.raw, phL = src.height * W / src.width, pad = 72;
+    var target = phL > W * 1.05 ? W * 16 / 9 : phL < W * 0.95 ? W * 5 / 4 : W * 1.45;
+    var P = Math.round(Math.max(600, Math.min(780, target - phL))), extra = P - 600, gap = extra / 3;
+    var PH = Math.round(src.height * OUT_W / src.width);
+    var c = document.createElement('canvas'); c.width = OUT_W; c.height = PH + Math.round(P * k);
     var g = c.getContext('2d');
-    g.drawImage(src, 0, 0, W, ph);
-    g.fillStyle = '#111214'; g.fillRect(0, ph, W, P);
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(src, 0, 0, OUT_W, PH);
+    g.setTransform(k, 0, 0, k, 0, PH);
+    var ph = 0;
+    g.fillStyle = '#111214'; g.fillRect(0, -1, W, P + 2);
     var ad = p.admin || {}, m = tm3(p.lon, p.lat, ad.regency), y0 = ph + gap * 0.9;
     // baris atas: tanggal & waktu | merek
     txt(g, fmtDate(p.time), pad, y0 + 92, 30, 500, 'rgba(255,255,255,.72)');
@@ -247,6 +253,7 @@
     g.fillStyle = col; g.beginPath(); g.arc(pad + 9, by - 9, 9, 0, Math.PI * 2); g.fill();
     txt(g, 'Akurasi ' + (p.acc != null ? '± ' + Math.round(p.acc) + ' m' : 'tidak tercatat'), pad + 30, by, 26, 600, '#fff');
     txt(g, p.source || '', c2, by, 22, 400, 'rgba(255,255,255,.5)', dialX - 160 - c2);
+    g.setTransform(1, 0, 0, 1, 0, 0);
     p.stamped = c;
     return c;
   }
@@ -262,6 +269,7 @@
       '<section class="gt-cam">'
       + '<video class="gt-video" playsinline muted autoplay></video><div class="gt-camerr" hidden><i class="fas fa-video-slash"></i><b>Kamera tidak dapat dibuka</b><span class="gt-camerr-t"></span></div>'
       + '<div class="gt-top"><button type="button" class="gt-round gt-x" aria-label="Tutup">' + ICON.close + '</button>'
+      + '<button type="button" class="gt-chip gt-native" aria-label="Pakai kamera bawaan HP"><i class="fas fa-mobile-alt"></i><b>Kamera HP</b></button>'
       + '<span class="gt-chip gt-gps none"><i></i><b>Mencari GPS…</b></span><span class="gt-chip gt-dir" hidden></span></div>'
       + '<div class="gt-hint"></div>'
       + '<div class="gt-bottom"><button type="button" class="gt-round gt-gal" aria-label="Pilih dari galeri">' + ICON.img + '</button>'
@@ -280,13 +288,15 @@
       + '<label><span>Petugas</span><input class="gt-in-off" maxlength="60" placeholder="Opsional"></label></div>'
       + '<p class="gt-foot">Koordinat dikunci saat foto diambil. Akurasi di bawah ± ' + GOOD + ' m sangat baik; di atas ± ' + FAIR + ' m sebaiknya ulangi di area terbuka.</p></div>'
       + '<footer class="gt-actions"><button type="button" class="gt-btn gt-save"><i class="fas fa-download"></i> Simpan foto</button><button type="button" class="gt-btn gt-primary gt-pdf"><i class="fas fa-file-pdf"></i> Buat PDF</button></footer>'
-      + '</section><input type="file" class="gt-file" accept="image/jpeg,image/*" hidden>';
+      + '</section><input type="file" class="gt-file" accept="image/jpeg,image/*" hidden><input type="file" class="gt-native-in" accept="image/*" capture="environment" hidden>';
     document.body.appendChild(el); S.el = el;
     $('.gt-x', el).onclick = closeAll;
     $('.gt-done', el).onclick = closeAll;
     $('.gt-back', el).onclick = function () { showCam(); };
     $('.gt-shutter', el).onclick = shoot;
     $('.gt-gal', el).onclick = function () { $('.gt-file', el).click(); };
+    $('.gt-native', el).onclick = function () { gpsStart(); $('.gt-native-in', el).click(); };
+    $('.gt-native-in', el).onchange = function () { var f = this.files && this.files[0]; this.value = ''; if (f) fromNative(f); };
     $('.gt-file', el).onchange = function () { var f = this.files && this.files[0]; this.value = ''; if (f) fromFile(f); };
     $('.gt-thumb', el).onclick = function () { showReview(S.photos.length - 1); };
     $('.gt-del', el).onclick = function () { removePhoto(S.cur); };
@@ -321,15 +331,24 @@
     if (S.stream || !S.el) return;
     var v = $('.gt-video', S.el), err = $('.gt-camerr', S.el);
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { err.hidden = false; $('.gt-camerr-t', S.el).textContent = 'Browser ini tidak mendukung kamera. Gunakan tombol galeri untuk memilih foto.'; return; }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } }, audio: false }).then(function (st) {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } }, audio: false }).then(function (st) {
       if (S.view !== 'cam') { st.getTracks().forEach(function (t) { t.stop(); }); return; }
       S.stream = st; v.srcObject = st; err.hidden = true; v.play().catch(function () {});
+      // Jalur foto resolusi penuh (Chrome Android): ImageCapture.takePhoto, bukan bingkai video.
+      var track = st.getVideoTracks()[0]; S.ic = null; S.photoW = 0;
+      try { if (track && track.applyConstraints) track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {}); } catch (e) {}
+      if (track && window.ImageCapture) {
+        try {
+          S.ic = new ImageCapture(track);
+          S.ic.getPhotoCapabilities().then(function (c) { S.photoW = c && c.imageWidth && c.imageWidth.max || 0; }).catch(function () {});
+        } catch (e) { S.ic = null; }
+      }
     }).catch(function (e) {
       err.hidden = false;
       $('.gt-camerr-t', S.el).textContent = e && e.name === 'NotAllowedError' ? 'Izin kamera ditolak. Izinkan kamera di pengaturan situs, atau pilih foto dari galeri.' : 'Kamera tidak ditemukan atau sedang dipakai aplikasi lain. Anda tetap bisa memilih foto dari galeri.';
     });
   }
-  function stopCam() { if (S.stream) { S.stream.getTracks().forEach(function (t) { t.stop(); }); S.stream = null; } if (S.el) $('.gt-video', S.el).srcObject = null; }
+  function stopCam() { S.ic = null; if (S.stream) { S.stream.getTracks().forEach(function (t) { t.stop(); }); S.stream = null; } if (S.el) $('.gt-video', S.el).srcObject = null; }
   function showCam() {
     build(); S.view = 'cam';
     S.el.className = 'gt-shell open cam';
@@ -357,22 +376,59 @@
     adminAt(p.lon, p.lat).then(function (a) { p.admin = a; stamp(p); if (S.view === 'rev') showReview(S.cur); });
   }
   function thumbOf(c) { var t = document.createElement('canvas'), s = 160 / Math.max(c.width, c.height); t.width = Math.round(c.width * s); t.height = Math.round(c.height * s); t.getContext('2d').drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', .8); }
+  function tiny(c) { var t = document.createElement('canvas'); t.width = t.height = 24; var g = t.getContext('2d'); g.drawImage(c, 0, 0, 24, 24); var d = g.getImageData(0, 0, 24, 24).data, o = []; for (var i = 0; i < d.length; i += 4) o.push(d[i] + d[i + 1] + d[i + 2]); return o; }
+  function diff(a, b) { var s = 0; for (var i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s; }
+  // Foto resolusi penuh; bila orientasinya berbeda dari pratinjau, putar ke arah yang paling cocok dengan pratinjau.
+  function fullPhoto(preview) {
+    if (!S.ic || !window.createImageBitmap) return Promise.reject();
+    var opts = S.photoW && S.photoW > Math.max(preview.width, preview.height) ? { imageWidth: S.photoW } : {};
+    var shot = S.ic.takePhoto(opts).catch(function () { return S.ic.takePhoto(); });
+    var limit = new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 7000); });
+    return Promise.race([shot, limit]).then(function (blob) { return createImageBitmap(blob, { imageOrientation: 'from-image' }); }).then(function (bmp) {
+      var c = fitCanvas(bmp, bmp.width, bmp.height); if (bmp.close) bmp.close();
+      if ((c.width > c.height) !== (preview.width > preview.height)) {
+        var ref = tiny(preview), a = rotateCanvas(c, 90), b2 = rotateCanvas(c, -90);
+        c = diff(tiny(a), ref) <= diff(tiny(b2), ref) ? a : b2;
+      }
+      return c;
+    });
+  }
   function shoot() {
     if (S.busy) return;
     var v = $('.gt-video', S.el);
     if (!S.stream || !v.videoWidth) { toast('Kamera belum siap.'); return; }
-    var raw = fitCanvas(v, v.videoWidth, v.videoHeight), time = new Date(), heading = compass.h;
-    // Layar terkunci potret tetapi HP dimiringkan (lanskap): putar hasil agar foto menjadi lanskap yang tegak.
+    var preview = fitCanvas(v, v.videoWidth, v.videoHeight), time = new Date(), heading = compass.h;
     var turn = physicalTurn(), screenPortrait = window.innerHeight >= window.innerWidth;
-    if (turn && screenPortrait && raw.height > raw.width) raw = rotateCanvas(raw, turn);
-    $('.gt-cam', S.el).classList.add('flash'); setTimeout(function () { $('.gt-cam', S.el).classList.remove('flash'); }, 180);
+    $('.gt-cam', S.el).classList.add('flash', 'saving'); setTimeout(function () { $('.gt-cam', S.el).classList.remove('flash'); }, 180);
     S.busy = true;
-    waitFix(function (fix) {
-      S.busy = false;
+    var fixReady = new Promise(function (res) { waitFix(res); });
+    var photoReady = fullPhoto(preview).catch(function () { return preview; });
+    Promise.all([photoReady, fixReady]).then(function (r) {
+      var raw = r[0], fix = r[1];
+      $('.gt-cam', S.el).classList.remove('saving'); S.busy = false;
+      // Layar terkunci potret tetapi HP dimiringkan (lanskap): putar hasil agar foto menjadi lanskap yang tegak.
+      if (turn && screenPortrait && raw.height > raw.width) raw = rotateCanvas(raw, turn);
       if (!fix) { toast(gpsError(gps.err)); return; }
       stopCam();
       addPhoto({ raw: raw, time: time, lat: fix.lat, lon: fix.lon, acc: fix.acc, heading: heading, source: 'GPS perangkat saat pemotretan' });
     });
+  }
+  // Kamera bawaan HP (kualitas penuh: HDR, mode malam). Koordinat dikunci saat foto kembali ke aplikasi.
+  function fromNative(file) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      var ex = readExif(rd.result) || {}, url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var raw = fitCanvas(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url);
+        var time = exifDate(ex.time) || new Date();
+        if (ex.lat != null) { stopCam(); addPhoto({ raw: raw, time: time, lat: ex.lat, lon: ex.lon, acc: ex.acc != null ? ex.acc : null, heading: ex.heading != null ? ex.heading : null, source: 'GPS kamera HP (data foto)' }); return; }
+        S.busy = true;
+        waitFix(function (fix) { S.busy = false; if (!fix) { toast(gpsError(gps.err)); return; } stopCam(); addPhoto({ raw: raw, time: time, lat: fix.lat, lon: fix.lon, acc: fix.acc, heading: ex.heading != null ? ex.heading : null, source: 'GPS perangkat saat memotret dengan kamera HP' }); });
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); toast('Foto dari kamera HP tidak dapat dibaca.'); };
+      img.src = url;
+    };
+    rd.readAsArrayBuffer(file.slice(0, 256 * 1024));
   }
   // Ambil pembacaan terbaik 10 detik terakhir; bila belum ada / masih lemah, tunggu sebentar.
   function waitFix(cb) {
@@ -440,7 +496,7 @@
       // Langsung simpan ke perangkat (folder Unduhan), tanpa menu bagikan.
       var a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
       toast('Foto tersimpan di folder Unduhan: ' + name);
-    }, 'image/jpeg', .92);
+    }, 'image/jpeg', .93);
   }
   function fileStamp(d) { return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()); }
 
@@ -465,6 +521,7 @@
     }).catch(function () { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf"></i> Buat PDF'; toast('Laporan gagal disiapkan. Coba lagi.'); });
     void pending;
   }
+  function pdfImage(c) { var m = 2000, sc = Math.min(1, m / Math.max(c.width, c.height)); if (sc === 1) return c.toDataURL('image/jpeg', .88); var t = document.createElement('canvas'); t.width = Math.round(c.width * sc); t.height = Math.round(c.height * sc); var g = t.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', .88); }
   function arrowSvg(h) { return '<svg class="arr" viewBox="0 0 10 10" style="transform:rotate(' + Math.round(h) + 'deg)"><path d="M5 .6 8.2 9 5 7.3 1.8 9z" fill="#007aff"/></svg>'; }
   function reportHtml() {
     var ps = S.photos, p0 = ps[0], ad = p0.admin || {}, n = ps.length;
@@ -483,7 +540,7 @@
     if (cellH * rowsN + GAP * (rowsN - 1) > cap) cellH = (cap - GAP * (rowsN - 1)) / rowsN;
     var photoH = Math.round(cellH * rowsN + GAP * (rowsN - 1));
     var photos = ps.map(function (p, k) {
-      return '<figure class="ph"><img src="' + p.raw.toDataURL('image/jpeg', .9) + '" alt="Foto ' + (k + 1) + '">' + (n > 1 ? '<span class="no">' + (k + 1) + '</span>' : '') + '</figure>';
+      return '<figure class="ph"><img src="' + pdfImage(p.raw) + '" alt="Foto ' + (k + 1) + '">' + (n > 1 ? '<span class="no">' + (k + 1) + '</span>' : '') + '</figure>';
     }).join('');
     var rows = ps.map(function (p, k) {
       var m = tm3(p.lon, p.lat, (p.admin || {}).regency);
