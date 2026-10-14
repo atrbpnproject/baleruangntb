@@ -2,16 +2,23 @@
    - Halaman (navigasi): ambil dari jaringan dulu, cadangan dari cache bila offline.
    - Berkas tampilan (js/css/gambar/font): cepat dari cache, diperbarui di latar.
    - Data tata ruang (data/...) & peta dasar: selalu dari jaringan (tidak disimpan, agar memori HP tidak penuh). */
-var VERSION = 'bale-ruang-20261014d';
+var VERSION = 'bale-ruang-20261014e';
+// Ikon & pustaka yang jarang berubah disimpan di cache terpisah agar tidak ikut terhapus setiap pembaruan versi.
+var STATIC = 'bale-ruang-static-v1';
+var STATIC_FILES = ['css/fontawesome-all.min.css', 'webfonts/fa-solid-900.woff2'];
+function isStatic(p) { return /\/webfonts\/|fontawesome-all\.min\.css$/.test(p); }
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/leaflet.css', 'js/leaflet.js',
   'images/bale-ruang-ntb-logo-v3.png', 'images/app/icon-192.png', 'images/app/icon-512.png'];
 self.addEventListener('install', function (event) {
-  event.waitUntil(caches.open(VERSION).then(function (cache) { return cache.addAll(SHELL); }).catch(function () {}));
+  event.waitUntil(Promise.all([
+    caches.open(VERSION).then(function (cache) { return cache.addAll(SHELL); }).catch(function () {}),
+    caches.open(STATIC).then(function (cache) { return cache.addAll(STATIC_FILES); }).catch(function () {})
+  ]));
   self.skipWaiting();
 });
 self.addEventListener('activate', function (event) {
   event.waitUntil(caches.keys().then(function (keys) {
-    return Promise.all(keys.filter(function (k) { return k !== VERSION; }).map(function (k) { return caches.delete(k); }));
+    return Promise.all(keys.filter(function (k) { return k !== VERSION && k !== STATIC; }).map(function (k) { return caches.delete(k); }));
   }).then(function () { return self.clients.claim(); }));
 });
 self.addEventListener('fetch', function (event) {
@@ -30,10 +37,13 @@ self.addEventListener('fetch', function (event) {
     return;
   }
   if (/\.(?:js|css|png|jpg|jpeg|svg|webp|woff2?|ttf|webmanifest)$/i.test(url.pathname)) {
-    event.respondWith(caches.open(VERSION).then(function (cache) {
-      return cache.match(req).then(function (hit) {
-        var net = fetch(req).then(function (res) { if (res && res.ok) cache.put(req, res.clone()); return res; }).catch(function () { return hit; });
-        return hit || net;
+    var st = isStatic(url.pathname);
+    event.respondWith(caches.open(st ? STATIC : VERSION).then(function (cache) {
+      return cache.match(req, st ? { ignoreSearch: true } : undefined).then(function (hit) {
+        if (hit && st) return hit;                                 // ikon: langsung dari cache, tanpa unduh ulang
+        var net = fetch(req).then(function (res) { if (res && res.ok) cache.put(req, res.clone()); return res; });
+        if (hit) { net.catch(function () {}); return hit; }
+        return net.catch(function () { return fetch(req); });     // jaringan putus sesaat: coba sekali lagi
       });
     }));
   }
