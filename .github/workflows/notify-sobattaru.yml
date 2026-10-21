@@ -1,0 +1,31 @@
+name: Kabari SOBAT TARU
+
+# Setiap kali data Bale Ruang berubah, picu sinkronisasi layer di SOBAT TARU KSB
+# (ksbatrbpn/sobattaru). Butuh secret SOBATTARU_DISPATCH_TOKEN berisi token
+# GitHub dengan akses tulis ke repositori SOBAT TARU.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/**"
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Picu sinkronisasi SOBAT TARU
+        env:
+          TOKEN: ${{ secrets.SOBATTARU_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::Secret SOBATTARU_DISPATCH_TOKEN belum diisi; SOBAT TARU tetap tersinkron lewat jadwal 6 jam."
+            exit 0
+          fi
+          curl -fsS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            https://api.github.com/repos/ksbatrbpn/sobattaru/dispatches \
+            -d "{\"event_type\":\"baleruang-updated\",\"client_payload\":{\"sha\":\"${GITHUB_SHA}\"}}"
+          echo "SOBAT TARU diminta menyinkronkan layer dari commit ${GITHUB_SHA}."
