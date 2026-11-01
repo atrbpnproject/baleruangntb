@@ -2,7 +2,7 @@
    - Halaman (navigasi): ambil dari jaringan dulu, cadangan dari cache bila offline.
    - Berkas tampilan (js/css/gambar/font): cepat dari cache, diperbarui di latar.
    - Data tata ruang (data/...) & peta dasar: selalu dari jaringan (tidak disimpan, agar memori HP tidak penuh). */
-var VERSION = 'bale-ruang-20261101-sesi';
+var VERSION = 'bale-ruang-20261101-digitasi';
 // Ikon & pustaka yang jarang berubah disimpan di cache terpisah agar tidak ikut terhapus setiap pembaruan versi.
 var STATIC = 'bale-ruang-static-v1';
 var STATIC_FILES = ['css/fontawesome-all.min.css', 'webfonts/fa-solid-900.woff2'];
