@@ -562,7 +562,7 @@ el.addEventListener('click',hide);setTimeout(hide,MAX)})();
       var key=String(index),existing=analysisResultLayers[key],def=item&&item.def;
       analysisResultToggleTokens[key]=(analysisResultToggleTokens[key]||0)+1;
       if(existing){if(map.hasLayer(existing))map.removeLayer(existing);delete analysisResultLayers[key]}
-      if(def&&def.input){if(enabled){def.input.checked=true;loadDef(def,true)}else{def.input.checked=false;def.input.dispatchEvent(new Event('change',{bubbles:true}))}}
+      if(def&&def.input){if(enabled){def.input.checked=true;var pane=def.paneName&&map.getPane(def.paneName);if(pane)pane.style.display='';if(def.legendButton){def.legendButton.style.display='';applyCatalogLegend(def)}loadDef(def,true)}else{def.input.checked=false;def.input.dispatchEvent(new Event('change',{bubbles:true}))}}
       if(!enabled||!item)return;
       var features=item.displayFeatures||item.hits;if(!features||!features.length)return;
       var toggleToken=analysisResultToggleTokens[key]=(analysisResultToggleTokens[key]||0)+1;
