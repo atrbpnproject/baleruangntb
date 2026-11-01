@@ -7434,6 +7434,11 @@ L.Control.Measure = L.Control.extend({
         }
       ).openTooltip();
     }
+    // Bale Ruang NTB: hasil ukur luas (poligon) tidak memakai popup agar bidang tidak tertutup;
+    // luas, keliling, export, dan hapus tersedia di panel analisis bidang.
+    if (latlngs.length > 2) {
+      return;
+    }
     resultFeature.bindPopup(popupContainer, this.options.popupOptions);
     if (resultFeature.getBounds) {
       resultFeature.openPopup(resultFeature.getBounds().getCenter());
