@@ -2104,8 +2104,11 @@ a.rg-main:hover{background:rgba(0,0,0,.035)}a.rg-main:active{background:rgba(0,0
 #kkprReviewModal .kr-table .kr-no{width:56px;text-align:center;color:var(--m-text-2,#5e5e66)}
 #kkprReviewModal .kr-note{display:flex;gap:7px;margin:0;padding:9px 12px;border-top:1px solid #e6edf3;font-size:11.5px;line-height:1.45;color:var(--m-text-2,#5e5e66)}
 #kkprReviewModal .kr-note i{margin-top:2px;color:#0b6fc0}
-#kkprReviewModal .kr-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-top:14px}
-@media (max-width:520px){#kkprReviewModal .kr-head{align-items:flex-start}#kkprReviewModal .kr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}#kkprReviewModal .kr-stats>div:last-child{grid-column:1/-1}#kkprReviewModal .kr-table th,#kkprReviewModal .kr-table td{padding-left:9px;padding-right:9px}#kkprReviewModal .kr-actions{grid-template-columns:1fr}}
+#kkprReviewModal .modal{display:flex;flex-direction:column;overflow:hidden}
+#kkprReviewModal .modal-top{flex:0 0 auto}
+#kkprReviewModal .modal-body{flex:1 1 auto;min-height:0;overflow:auto;padding-bottom:0!important}
+#kkprReviewModal .kr-actions{position:sticky;bottom:0;z-index:3;display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin:14px -20px 0;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid #e6edf3;box-shadow:0 -6px 16px rgba(10,37,64,.06)}
+@media (max-width:520px){#kkprReviewModal .kr-head{align-items:flex-start}#kkprReviewModal .kr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}#kkprReviewModal .kr-stats>div:last-child{grid-column:1/-1}#kkprReviewModal .kr-table th,#kkprReviewModal .kr-table td{padding-left:9px;padding-right:9px}#kkprReviewModal .kr-actions{grid-template-columns:1fr 1.5fr;gap:8px}#kkprReviewModal .kr-table-wrap{max-height:none}}
 </style>
 <style id="kkpr-pbt-style">
 #kkprPbtBox{margin:12px 0 4px}
