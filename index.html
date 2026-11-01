@@ -1551,7 +1551,7 @@ el.addEventListener('click',hide);setTimeout(hide,MAX)})();
       var polygons=brPolygonFeatures(reportGeometry);
       if(polygons.length&&!brRestoring){var previous=brSession,selected=fieldState&&fieldState.selected>=0&&fieldState.features[fieldState.selected]===reportGeometry.features[0]?fieldState.selected:null;
         brSession={latlng:L.latLng(latlng.lat,latlng.lng),geometry:reportGeometry,source:currentSpatialSource?{type:currentSpatialSource.type,fileName:currentSpatialSource.fileName}:null,kkpr:currentSpatialSource&&currentSpatialSource.type==='kkpr'?pendingKkpr:null,explorerIndex:selected,displaced:false,pbt:null};
-        if(previous!==brSession)brReplaceSessionVisuals(previous,brSession);if(brSession.source&&brSession.source.type==='digitized')brGlowSession(brSession);var fresh=brSession;setTimeout(function(){brFitSessionVisible(fresh)},560)}
+        if(previous!==brSession)brReplaceSessionVisuals(previous,brSession);if(brSession.source&&brSession.source.type==='digitized')brGlowSession(brSession);var fresh=brSession;if(!(fresh.source&&fresh.source.type==='digitized'))setTimeout(function(){brFitSessionVisible(fresh)},560)}
       else if(!polygons.length&&brSession&&!brSession.displaced){
         // Titik baru menggantikan tampilan bidang: simpan penyandingan KKPR agar dapat dipulihkan apa adanya.
         brSession.pbt=brSnapshotPbt();brSession.displaced=true;
