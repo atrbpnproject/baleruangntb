@@ -22,15 +22,107 @@
       try { custom = JSON.parse(load(CUSTOM_KEY) || 'null'); } catch (e) {}
       list.push(Object.assign({ id: 'custom', name: 'URL layanan sendiri', type: 'wms', url: '', layers: '', minZoom: 15, custom: true }, custom || {}, { id: 'custom', custom: true }));
     }
+    list.push({ id: 'local', name: state.localName ? 'File dari komputer: ' + state.localName : 'File dari komputer', type: 'file', local: true, minZoom: 14, fields: config.fileFields || {} });
     return list;
   }
   function findSource(id) { return sources().filter(function (s) { return s.id === id; })[0] || null; }
-  function isConfigured(src) { return !!(src && src.url && (src.type !== 'wms' || src.layers) && (src.type !== 'arcgis' || /MapServer\/?$/i.test(src.url))); }
+  function isConfigured(src) { if (src && src.local) return !!state.localData; return !!(src && src.url && (src.type !== 'wms' || src.layers) && (src.type !== 'arcgis' || /MapServer\/?$/i.test(src.url))); }
   function minZoom(src) { return src && src.minZoom != null ? Number(src.minZoom) : 15; }
   function withParams(url, params) {
     var q = Object.keys(params || {}).filter(function (k) { return params[k] != null && params[k] !== ''; })
       .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
     return q ? url + (url.indexOf('?') >= 0 ? '&' : '?') + q : url;
+  }
+
+  /* ---------- Sumber file statis: GeoJSON, Shapefile (.zip), KML ---------- */
+  // Link berbagi Google Drive diubah ke alamat unduh langsung. File harus dibagikan "Siapa saja yang memiliki link".
+  function driveDirectUrl(url) {
+    var m = String(url || '').match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]{20,})/);
+    return m ? 'https://drive.usercontent.google.com/download?id=' + m[1] + '&export=download&confirm=t' : url;
+  }
+  function kmlToGeoJSON(text) {
+    var doc = new DOMParser().parseFromString(text, 'text/xml'), features = [];
+    function ring(el) {
+      var c = el && el.getElementsByTagName('coordinates')[0];
+      return c ? c.textContent.trim().split(/\s+/).map(function (t) { var p = t.split(','); return [Number(p[0]), Number(p[1])]; })
+        .filter(function (p) { return isFinite(p[0]) && isFinite(p[1]); }) : [];
+    }
+    [].forEach.call(doc.getElementsByTagName('Placemark'), function (pm) {
+      var props = {}, name = pm.getElementsByTagName('name')[0];
+      if (name) props.Nama = name.textContent.trim();
+      [].forEach.call(pm.getElementsByTagName('SimpleData'), function (d) { props[d.getAttribute('name')] = d.textContent.trim(); });
+      [].forEach.call(pm.getElementsByTagName('Data'), function (d) { var v = d.getElementsByTagName('value')[0]; if (v) props[d.getAttribute('name')] = v.textContent.trim(); });
+      var polygons = [].map.call(pm.getElementsByTagName('Polygon'), function (pg) {
+        var rings = [ring(pg.getElementsByTagName('outerBoundaryIs')[0])];
+        [].forEach.call(pg.getElementsByTagName('innerBoundaryIs'), function (inner) { rings.push(ring(inner)); });
+        return rings.filter(function (r) { return r.length >= 4; });
+      }).filter(function (rings) { return rings.length; });
+      if (!polygons.length) return;
+      features.push({ type: 'Feature', properties: props, geometry: polygons.length === 1 ? { type: 'Polygon', coordinates: polygons[0] } : { type: 'MultiPolygon', coordinates: polygons } });
+    });
+    return { type: 'FeatureCollection', features: features };
+  }
+  function normalizeCollection(data) {
+    var list = Array.isArray(data) ? data : [data], features = [];
+    list.forEach(function (item) {
+      if (!item) return;
+      if (item.type === 'FeatureCollection') features = features.concat(item.features || []);
+      else if (item.type === 'Feature') features.push(item);
+      else if (item.type && item.coordinates) features.push({ type: 'Feature', properties: {}, geometry: item });
+    });
+    features = features.filter(function (f) { return f && f.geometry; });
+    if (!features.length) throw new Error('Tidak ada bidang (poligon) di dalam file.');
+    var first = JSON.stringify(features[0].geometry.coordinates).match(/-?\d+(\.\d+)?/g) || [];
+    if (first.slice(0, 2).some(function (n) { return Math.abs(Number(n)) > 180; }))
+      throw new Error('Koordinat file bukan derajat (WGS84). Ekspor ulang ke EPSG:4326, atau unggah SHP .zip lengkap dengan file .prj.');
+    return { type: 'FeatureCollection', features: features };
+  }
+  function parseParcelBuffer(buffer) {
+    var bytes = new Uint8Array(buffer);
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+      if (typeof window.shp !== 'function') return Promise.reject(new Error('Pembaca Shapefile belum termuat.'));
+      return Promise.resolve(window.shp(buffer)).then(normalizeCollection); // .prj dibaca otomatis, TM-3/UTM diubah ke WGS84
+    }
+    var text = new TextDecoder('utf-8').decode(bytes).replace(/^\uFEFF/, '').trim();
+    try {
+      if (/^<!doctype html|^<html/i.test(text)) throw new Error('Yang terunduh adalah halaman web, bukan file data. Untuk Google Drive: bagikan file sebagai "Siapa saja yang memiliki link".');
+      if (/^[\[{]/.test(text)) return Promise.resolve(normalizeCollection(JSON.parse(text)));
+      if (/<kml[\s>]/i.test(text)) return Promise.resolve(normalizeCollection(kmlToGeoJSON(text)));
+      throw new Error('Format file tidak dikenali. Gunakan GeoJSON, Shapefile (.zip), atau KML.');
+    } catch (err) { return Promise.reject(err); }
+  }
+  function loadFileSource(src) {
+    state.fileCache = state.fileCache || {};
+    var url = driveDirectUrl(src.url);
+    if (state.fileCache[url]) return Promise.resolve(state.fileCache[url]);
+    return fetch(url).catch(function () {
+      throw new Error(/drive\.google|drive\.usercontent\.google|googleusercontent/.test(url)
+        ? 'Google Drive menolak diunduh langsung dari browser (CORS). Simpan file di repo/GitHub Pages, atau pakai tombol unggah file.'
+        : 'File tidak dapat diunduh (jaringan atau CORS).');
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' saat mengunduh file.');
+      return r.arrayBuffer();
+    }).then(parseParcelBuffer).then(function (data) { state.fileCache[url] = data; return data; });
+  }
+  function fileLayer(src, data) {
+    var renderer = L.canvas({ padding: 0.3, pane: 'persilPane' }), group = L.layerGroup();
+    var geo = L.geoJSON(data, {
+      pane: 'persilPane', renderer: renderer, smoothFactor: 0,
+      style: { color: '#ffd400', weight: 1.3, opacity: 1, fillColor: '#ffd400', fillOpacity: 0.08 },
+      onEachFeature: function (feature, layer) {
+        layer.on('click', function (e) {
+          drawHighlight(feature.geometry);
+          openPopup(e.latlng, popupShell(src, attributeTable(src, feature.properties || {}), 1));
+        });
+      }
+    });
+    // Ribuan bidang hanya digambar pada zoom dekat agar peta tetap ringan.
+    function sync() { var show = map.getZoom() >= minZoom(src); if (show && !group.hasLayer(geo)) group.addLayer(geo); else if (!show && group.hasLayer(geo)) group.removeLayer(geo); }
+    group.on('add', function () { map.on('zoomend', sync); sync(); });
+    group.on('remove', function () { map.off('zoomend', sync); });
+    group.featureCount = data.features.length;
+    group.dataBounds = geo.getBounds();
+    return group;
   }
 
   /* ---------- Pane: di atas layer tata ruang, di bawah penanda & popup ---------- */
@@ -74,6 +166,7 @@
     }
     if (src.type === 'arcgis') return Promise.resolve(new ArcGISExportLayer('', Object.assign({}, common, { source: src })));
     if (src.type === 'xyz') return Promise.resolve(L.tileLayer(withParams(src.url, src.params), common));
+    if (src.type === 'file') return (src.local ? Promise.resolve(state.localData) : loadFileSource(src)).then(function (data) { return fileLayer(src, data); });
     if (src.type === 'mvt') {
       return loadVectorGrid().then(function () {
         var style = { weight: 1.2, color: '#ffd400', opacity: 1, fill: true, fillColor: '#ffd400', fillOpacity: 0.08 };
@@ -108,7 +201,7 @@
     }).addTo(map);
   }
   function attributeTable(src, props) {
-    var fields = src.fields || {}, keys = Object.keys(fields).filter(function (k) { return props[k] != null && props[k] !== ''; });
+    var fields = src.fields || (src.type === 'file' ? config.fileFields : null) || {}, keys = Object.keys(fields).filter(function (k) { return props[k] != null && props[k] !== ''; });
     Object.keys(props).forEach(function (k) {
       if (keys.indexOf(k) < 0 && props[k] != null && props[k] !== '' && typeof props[k] !== 'object' && !/^(shape|objectid|fid|the_geom|geom|bbox)/i.test(k)) keys.push(k);
     });
@@ -175,7 +268,7 @@
   function identify(latlng) {
     var src = state.source, token = ++state.token;
     if (!state.on || !src || state.measuring || map.getZoom() < minZoom(src)) return;
-    if (src.type === 'mvt') return; // ditangani klik pada bidang vector tile
+    if (src.type === 'mvt' || src.type === 'file') return; // ditangani klik pada bidang itu sendiri
     var request = identifyRequest(src, latlng);
     request.then(function (rows) {
       if (token !== state.token || rows == null) return;
@@ -211,7 +304,8 @@
     if (!state.on) { setMeta(src && isConfigured(src) ? 'Siap • ' + src.name : 'Pilih sumber persil', ''); return; }
     if (!isConfigured(src)) { setMeta('Endpoint ' + (src ? src.name : '') + ' belum dikonfigurasi', 'error'); return; }
     if (map.getZoom() < minZoom(src)) { setMeta('Aktif • perbesar hingga zoom ' + minZoom(src) + ' untuk melihat bidang', 'loading'); return; }
-    setMeta('Aktif • ' + src.name + ' • klik bidang untuk info', 'ready');
+    var count = state.layer && state.layer.featureCount ? state.layer.featureCount.toLocaleString('id-ID') + ' bidang • ' : '';
+    setMeta('Aktif • ' + count + 'klik bidang untuk info', 'ready');
   }
   function removeLayer() { if (state.layer) { map.removeLayer(state.layer); state.layer = null; } clearHighlight(); map.closePopup(); }
   function activate() {
@@ -220,6 +314,7 @@
     if (!state.on) { refreshMeta(); return; }
     if (!isConfigured(src)) {
       refreshMeta();
+      if (src && src.local) { ui.file.click(); refreshMeta(); return; }
       toast(src && src.custom ? 'Isi URL layanan persil terlebih dahulu.' : 'Endpoint persil ' + (src ? src.name : '') + ' belum diisi di js/persil-config.js.');
       if (src && src.custom) ui.form.hidden = false;
       return;
@@ -231,6 +326,8 @@
       layer.on('tileerror', function () { if (++errors === 4) toast('Sebagian tile persil gagal dimuat dari ' + src.name + '. Periksa akses layanan.'); });
       state.layer = layer.addTo(map);
       refreshMeta();
+      var bounds = layer.dataBounds;
+      if (bounds && bounds.isValid() && (map.getZoom() < minZoom(src) || !map.getBounds().intersects(bounds))) map.fitBounds(bounds, { maxZoom: Math.max(minZoom(src), 16) });
       if (map.getZoom() < minZoom(src)) toast('Layer persil tampil mulai zoom ' + minZoom(src) + '. Perbesar peta ke lokasi bidang.');
     }).catch(function (err) { if (token === state.token) { setMeta('Gagal memuat: ' + (err && err.message || 'kesalahan'), 'error'); } });
   }
@@ -247,11 +344,13 @@
     var title = document.createElement('div');
     title.className = 'section-title'; title.style.marginTop = '14px'; title.textContent = 'Persil / bidang tanah';
     var wrap = document.createElement('div'); wrap.id = 'persilList';
-    wrap.innerHTML = '<div class="layer persil-row"><div><div class="layer-title">Persil (Bidang Tanah)<span class="layer-legal">Layanan peta resmi • tampil mulai zoom dekat</span></div>'
+    wrap.innerHTML = '<div class="layer persil-row"><div><div class="layer-title">Persil (Bidang Tanah)<span class="layer-legal">Layanan peta resmi atau file • tampil di zoom dekat</span></div>'
       + '<div class="layer-meta">Pilih sumber persil</div>'
       + '<div class="persil-source"><label for="persilSource">Sumber</label><select id="persilSource"></select>'
-      + '<button type="button" class="persil-edit" title="Atur URL layanan sendiri" aria-label="Atur URL layanan sendiri" hidden><i class="fas fa-cog" aria-hidden="true"></i></button></div>'
-      + '<form class="persil-custom" hidden><label>Jenis layanan<select name="type"><option value="wms">WMS</option><option value="arcgis">ArcGIS REST MapServer</option><option value="xyz">Tile XYZ (raster)</option><option value="mvt">Vector tile (.pbf)</option></select></label>'
+      + '<button type="button" class="persil-edit" title="Atur URL layanan sendiri" aria-label="Atur URL layanan sendiri" hidden><i class="fas fa-cog" aria-hidden="true"></i></button>'
+      + '<button type="button" class="persil-upload" title="Unggah file persil dari komputer (GeoJSON, SHP .zip, KML)" aria-label="Unggah file persil dari komputer"><i class="fas fa-upload" aria-hidden="true"></i></button>'
+      + '<input type="file" class="persil-file" accept=".geojson,.json,.zip,.kml" hidden></div>'
+      + '<form class="persil-custom" hidden><label>Jenis layanan<select name="type"><option value="wms">WMS</option><option value="arcgis">ArcGIS REST MapServer</option><option value="xyz">Tile XYZ (raster)</option><option value="mvt">Vector tile (.pbf)</option><option value="file">File GeoJSON / SHP (.zip) / KML — URL atau link Google Drive</option></select></label>'
       + '<label>URL layanan<input name="url" type="url" required placeholder="https://…/wms atau …/MapServer"></label>'
       + '<label>Nama layer / sublayer<input name="layers" type="text" placeholder="mis. persil atau 0"></label>'
       + '<label>Zoom minimum<input name="minZoom" type="number" min="8" max="20" value="15"></label>'
@@ -262,6 +361,7 @@
     wrap.insertAdjacentElement('beforebegin', title);
     ui.row = wrap.querySelector('.layer'); ui.meta = wrap.querySelector('.layer-meta'); ui.select = wrap.querySelector('select#persilSource');
     ui.input = wrap.querySelector('.switch input'); ui.form = wrap.querySelector('.persil-custom'); ui.edit = wrap.querySelector('.persil-edit');
+    ui.upload = wrap.querySelector('.persil-upload'); ui.file = wrap.querySelector('.persil-file');
 
     var initial = findSource(load(SOURCE_KEY)) || findSource(config.defaultSource) || sources()[0] || null;
     state.source = initial;
@@ -280,8 +380,21 @@
 
     L.DomEvent.disableClickPropagation(wrap);
     ui.input.addEventListener('change', function () { state.on = this.checked; activate(); });
-    ui.select.addEventListener('change', function () { state.source = findSource(this.value); store(SOURCE_KEY, this.value); syncCustomUi(); activate(); });
+    ui.select.addEventListener('change', function () { state.source = findSource(this.value); if (this.value !== 'local') store(SOURCE_KEY, this.value); syncCustomUi(); activate(); });
     ui.edit.addEventListener('click', function () { ui.form.hidden = !ui.form.hidden; });
+    ui.upload.addEventListener('click', function () { ui.file.click(); });
+    ui.file.addEventListener('change', function () {
+      var file = this.files && this.files[0]; this.value = '';
+      if (!file) return;
+      setMeta('Membaca ' + file.name + '…', 'loading');
+      file.arrayBuffer().then(parseParcelBuffer).then(function (data) {
+        // Dibaca di browser ini saja; tidak diunggah ke server mana pun.
+        state.localData = data; state.localName = file.name;
+        state.source = findSource('local'); renderSourceOptions('local'); syncCustomUi();
+        state.on = ui.input.checked = true; activate();
+        toast(data.features.length.toLocaleString('id-ID') + ' bidang dibaca dari ' + file.name + '.');
+      }).catch(function (err) { setMeta('Gagal membaca file: ' + (err && err.message || 'kesalahan'), 'error'); });
+    });
     ui.form.addEventListener('submit', function (event) {
       event.preventDefault();
       var f = ui.form, custom = { type: f.type.value, url: f.url.value.trim(), layers: f.layers.value.trim(), minZoom: Number(f.minZoom.value) || 15, vectorLayer: '', idField: 'id' };
@@ -298,7 +411,7 @@
   var css = document.createElement('style');
   css.textContent = '.persil-source{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10px;color:#557087}'
     + '.persil-source select{flex:1;min-width:0;padding:4px 6px;border:1px solid #cddbe6;border-radius:8px;background:#fff;color:#123f65;font-size:11px}'
-    + '.persil-edit{padding:4px 7px;border:1px solid #cddbe6;border-radius:8px;background:#fff;color:#0878cf;cursor:pointer}'
+    + '.persil-edit,.persil-upload{padding:4px 7px;border:1px solid #cddbe6;border-radius:8px;background:#fff;color:#0878cf;cursor:pointer}'
     + '.persil-custom{display:grid;gap:6px;margin-top:8px;padding:8px;border:1px solid #d7e5ef;border-radius:10px;background:#f7fbfe;font-size:10px;color:#3c5568}'
     + '.persil-custom[hidden]{display:none}.persil-custom label{display:grid;gap:3px;font-weight:700}'
     + '.persil-custom input,.persil-custom select{padding:5px 7px;border:1px solid #cddbe6;border-radius:7px;font-size:11px;font-weight:400}'

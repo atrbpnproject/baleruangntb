@@ -10,6 +10,11 @@
  *   'xyz'    — Tile raster {z}/{x}/{y}. Klik peta memakai `identifyUrl` bila diisi.
  *   'mvt'    — Vector tile {z}/{x}/{y}.pbf (mis. Martin/PostGIS). Klik bidang = atribut dari tile,
  *              lalu `detailUrl` (opsional) dipanggil untuk atribut tambahan.
+ *   'file'   — File statis: GeoJSON, Shapefile (.zip berisi .shp/.dbf/.prj), atau KML. `url` boleh berupa
+ *              path di repo ini (mis. 'data/persil/selong.geojson'), URL lain yang mengizinkan CORS, atau link
+ *              berbagi Google Drive (diubah otomatis ke link unduh; Google sering memblokirnya — lihat README).
+ *              Semua bidang dimuat sekaligus, jadi cocok untuk satu desa/kecamatan, bukan satu provinsi.
+ *   Selain itu, panel selalu punya pilihan "File dari komputer" (tombol unggah) yang dibaca di browser saja.
  *
  * Kolom umum: id, name, type, url, minZoom (default 15), maxNativeZoom, attribution, opacity,
  *   params (parameter tambahan untuk setiap permintaan, mis. { token: '...' } untuk ArcGIS),
@@ -31,6 +36,8 @@ window.BALE_PERSIL_CONFIG = {
   defaultSource: 'bhumi',
   // Izinkan pengguna mengisi URL layanan sendiri dari panel layer (tersimpan di browser masing-masing).
   allowCustomSource: true,
+  // Label atribut untuk file yang diunggah dari komputer.
+  fileFields: { NIB: 'NIB', TIPEHAK: 'Jenis hak', HAK: 'Hak', LUASTERTUL: 'Luas tertulis (m²)', LUAS: 'Luas (m²)', DESA: 'Desa/Kelurahan', KECAMATAN: 'Kecamatan' },
   sources: [
     {
       id: 'bhumi',
@@ -55,6 +62,15 @@ window.BALE_PERSIL_CONFIG = {
       minZoom: 15,
       attribution: '© BumiAtlas',
       fields: { id: 'ID', luas: 'Luas (m²)', jenis_hak: 'Jenis hak', nib: 'NIB' }
+    },
+    {
+      id: 'file',
+      name: 'File persil (GeoJSON / SHP / KML)',
+      type: 'file',
+      url: '',                       // contoh: 'data/persil/persil-selong.geojson' atau link Google Drive
+      minZoom: 14,
+      attribution: 'Data persil manual',
+      fields: { NIB: 'NIB', TIPEHAK: 'Jenis hak', HAK: 'Hak', LUASTERTUL: 'Luas tertulis (m²)', LUAS: 'Luas (m²)', DESA: 'Desa/Kelurahan', KECAMATAN: 'Kecamatan' }
     }
   ]
 };
