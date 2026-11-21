@@ -1,8 +1,8 @@
 /* Bale Ruang NTB — alat "Fasilitas Terdekat" di peta.
  * Pilih alat dari Toolbox (Alat Peta), lalu klik satu titik di peta: sekolah, kesehatan, ibadah,
  * belanja/pasar, dan kantor pemerintahan terdekat langsung tampil di panel dan sebagai penanda di peta.
- * Data dan klasifikasinya memakai logika yang sama dengan bagian "Fasilitas Terdekat" di laporan PDF
- * (BidangReport.fetchFacilities: OpenStreetMap/Overpass, radius 5 km). */
+ * Data dan klasifikasinya sama dengan bagian "Fasilitas Terdekat" di laporan PDF (BidangReport.fetchFacilities):
+ * Overture Maps Places yang disimpan di aplikasi, dengan cadangan OpenStreetMap/Overpass. */
 (function () {
   'use strict';
   var map = window.map, L = window.L;
@@ -15,7 +15,7 @@
     { id: 'market', label: 'Belanja & pasar', icon: 'fa-shopping-basket', color: '#d97706' },
     { id: 'gov', label: 'Pemerintahan', icon: 'fa-university', color: '#7c3aed' }
   ];
-  var PER_GROUP = 3, RADIUS = 5000;
+  var PER_GROUP = 3, RADIUS = BidangReport.facilityRadius || 3000;
   var state = { picking: false, token: 0, layer: L.layerGroup(), markers: {}, panel: null, lastPickAt: 0, point: null };
 
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -54,7 +54,7 @@
     el.setAttribute('aria-label', 'Fasilitas terdekat');
     el.innerHTML = '<div class="fac-head"><div><h3>Fasilitas Terdekat</h3><p data-fac-coord></p></div><button type="button" data-fac-close title="Tutup" aria-label="Tutup"><i class="fas fa-times"></i></button></div>' +
       '<div class="fac-body" data-fac-body></div>' +
-      '<div class="fac-foot"><p>Jarak garis lurus dari titik yang diklik, radius ' + (RADIUS / 1000) + ' km. Sumber: © kontributor OpenStreetMap; bisa belum lengkap.</p><button type="button" data-fac-again><i class="fas fa-crosshairs"></i> Titik lain</button></div>';
+      '<div class="fac-foot"><p data-fac-src>Jarak garis lurus dari titik yang diklik, radius ' + (RADIUS / 1000) + ' km.</p><button type="button" data-fac-again><i class="fas fa-crosshairs"></i> Titik lain</button></div>';
     L.DomEvent.disableClickPropagation(el);
     L.DomEvent.disableScrollPropagation(el);
     el.querySelector('[data-fac-close]').addEventListener('click', clear);
@@ -101,11 +101,9 @@
     state.markers = {};
     L.circle([lat, lng], { radius: RADIUS, color: '#0874bd', weight: 1, dashArray: '4 6', fill: false, interactive: false }).addTo(state.layer);
     L.circleMarker([lat, lng], { radius: 7, color: '#fff', weight: 2, fillColor: '#0b2a45', fillOpacity: 1 }).bindTooltip('Titik acuan').addTo(state.layer);
+    var nearest = BidangReport.nearestFacilities(list, { lat: lat, lng: lng }, PER_GROUP);
     GROUPS.forEach(function (g) {
-      var items = list.filter(function (f) { return f.group === g.id; })
-        .map(function (f) { return { f: f, d: BidangReport.inverse(lat, lng, f.lat, f.lng).dist }; })
-        .filter(function (it) { return it.d <= RADIUS; })
-        .sort(function (a, b) { return a.d - b.d; }).slice(0, PER_GROUP);
+      var items = (nearest.filter(function (n) { return n.id === g.id; })[0] || { items: [] }).items;
       html.push('<div class="fac-group"><h4><i class="fas ' + g.icon + '" style="background:' + g.color + '"></i>' + esc(g.label) + '</h4>');
       if (!items.length) html.push('<p class="fac-empty">Tidak ditemukan dalam radius ' + (RADIUS / 1000) + ' km.</p>');
       items.forEach(function (it, i) {
@@ -120,6 +118,8 @@
       html.push('</div>');
     });
     body.innerHTML = html.join('');
+    var src = (BidangReport.facilitySource || {})[list.source] || '';
+    panel().querySelector('[data-fac-src]').textContent = 'Jarak garis lurus dari titik yang diklik, radius ' + (RADIUS / 1000) + ' km. ' + src.replace(/^Sumber: /, 'Sumber: ') + (src ? '; bisa belum lengkap.' : '');
     if (bounds.length > 1) {
       var mobile = window.matchMedia && window.matchMedia('(max-width:760px)').matches, mapBox = map.getContainer().getBoundingClientRect(), pr = panel().getBoundingClientRect();
       var left = 40, layerPanel = document.getElementById('layerPanel');
@@ -145,7 +145,7 @@
       render(list, lat, lng);
     }, function () {
       if (token !== state.token) return;
-      el.querySelector('[data-fac-body]').innerHTML = '<div class="fac-msg">Data fasilitas tidak dapat diambil. Periksa koneksi internet, lalu klik <b>Titik lain</b> untuk mencoba lagi.</div>';
+      el.querySelector('[data-fac-body]').innerHTML = '<div class="fac-msg">Data fasilitas tidak dapat dimuat. Periksa koneksi internet, lalu klik <b>Titik lain</b> untuk mencoba lagi.</div>';
     });
   }
 

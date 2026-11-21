@@ -1,13 +1,13 @@
 /* Bale Ruang NTB — Rincian bidang untuk laporan PDF:
  * titik batas (koordinat, panjang sisi, azimut, arah hadap), sketsa batas bidang berskala,
- * fasilitas terdekat (OpenStreetMap), serta tautan + QR yang membuka kembali bidang/titik di peta.
+ * fasilitas terdekat (Overture Maps, cadangan OpenStreetMap), serta tautan + QR yang membuka kembali bidang/titik di peta.
  * Berkas ini dipakai di aplikasi utama dan di jendela laporan (tanpa dependensi selain qrcode.js). */
 (function (root) {
   'use strict';
 
   var PUBLIC_URL = 'https://atrbpnproject.github.io/baleruangntb/';
-  var OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
-  var FACILITY_RADIUS = 5000, QR_MAX_URL = 850, TABLE_MAX_ROWS = 400;
+  var OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+  var FACILITY_RADIUS = 3000, QR_MAX_URL = 850, TABLE_MAX_ROWS = 400;
 
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function num(v, dec) { return Number(v).toLocaleString('id-ID', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
@@ -293,28 +293,37 @@
     return null;
   }
 
-  /* ---------------- Fasilitas terdekat (OpenStreetMap / Overpass) ---------------- */
+  /* ---------------- Fasilitas terdekat ----------------
+   * Sumber utama: data Overture Maps Places untuk NTB yang disimpan di aplikasi (data/fasilitas/ntb-overture.json,
+   * dibangun oleh tools/fasilitas-overture.py) sehingga tidak bergantung pada server luar.
+   * Cadangan: OpenStreetMap lewat Overpass, untuk titik di luar cakupan data atau bila file gagal dimuat. */
   var GROUPS = [
     { id: 'edu', label: 'Pendidikan' }, { id: 'health', label: 'Kesehatan' }, { id: 'worship', label: 'Ibadah' },
-    { id: 'market', label: 'Pasar & belanja' }, { id: 'gov', label: 'Pemerintahan' }
+    { id: 'market', label: 'Belanja & pasar' }, { id: 'gov', label: 'Pemerintahan' }
   ];
+  var SCRIPT_BASE = (function () { try { var src = document.currentScript && document.currentScript.src; return src ? new URL('../', src).href : ''; } catch (e) { return ''; } })();
+  var LOCAL_DATA_URL = 'data/fasilitas/ntb-overture.json?v=2026-11-18.0';
+  var SOURCE_TEXT = {
+    overture: 'Sumber: Overture Maps Foundation (Places), disimpan di Bale Ruang NTB',
+    osm: 'Sumber: © kontributor OpenStreetMap (ODbL), diambil saat dibuka'
+  };
   function classify(t) {
     var a = t.amenity, name = t.name || '';
     if (a === 'school') return ['edu', /^(SDN?|MIN?|SD\s|UPT\s*SD)/i.test(name) ? 'SD/MI' : /^(SMPN?|MTSN?)\b/i.test(name) ? 'SMP/MTs' : /^(SMAN?|SMKN?|MAN?)\b/i.test(name) ? 'SMA/SMK/MA' : 'Sekolah'];
     if (a === 'kindergarten') return ['edu', 'TK/PAUD'];
     if (a === 'college' || a === 'university') return ['edu', 'Perguruan tinggi'];
     if (a === 'hospital' || t.healthcare === 'hospital') return ['health', 'Rumah sakit'];
-    if (a === 'clinic' || a === 'doctors' || /^(clinic|centre|doctor)$/.test(t.healthcare || '')) return ['health', /puskesmas/i.test(name) ? 'Puskesmas' : a === 'doctors' || t.healthcare === 'doctor' ? 'Praktik dokter' : 'Klinik/Puskesmas'];
-    if (a === 'place_of_worship') return ['worship', { muslim: 'Masjid/musala', hindu: 'Pura', christian: 'Gereja', buddhist: 'Vihara' }[t.religion] || 'Tempat ibadah'];
+    if (a === 'clinic' || a === 'doctors' || /^(clinic|centre|doctor)$/.test(t.healthcare || '')) return ['health', /puskesmas/i.test(name) ? 'Puskesmas/pustu' : a === 'doctors' || t.healthcare === 'doctor' ? 'Praktik dokter' : 'Klinik'];
+    if (a === 'place_of_worship') return ['worship', { muslim: 'Masjid / musala', hindu: 'Pura', christian: 'Gereja', buddhist: 'Vihara' }[t.religion] || 'Tempat ibadah'];
     if (a === 'marketplace') return ['market', 'Pasar'];
     if (t.shop === 'supermarket') return ['market', 'Swalayan'];
     if (t.shop === 'convenience') return ['market', 'Minimarket'];
-    if (a === 'townhall') return ['gov', /desa|kelurahan/i.test(name) ? 'Kantor desa/kelurahan' : 'Kantor pemerintahan'];
+    if (a === 'townhall') return ['gov', /desa|kelurahan/i.test(name) ? 'Kantor desa/kelurahan' : 'Kantor pemerintah'];
     if (a === 'police') return ['gov', 'Kantor polisi'];
-    if (t.office === 'government') return ['gov', 'Kantor pemerintahan'];
+    if (t.office === 'government') return ['gov', 'Kantor pemerintah'];
     return null;
   }
-  var facilityCache = Object.create(null);
+  var facilityCache = Object.create(null), localData = null;
   function facilityKey(lat, lng) { return lat.toFixed(3) + ',' + lng.toFixed(3); }
   function overpassQuery(lat, lng) {
     var a = '(around:' + FACILITY_RADIUS + ',' + lat.toFixed(5) + ',' + lng.toFixed(5) + ')';
@@ -331,41 +340,96 @@
     init.signal = ctl.signal;
     return fetch(url, init).then(function (r) { clearTimeout(timer); return r; }, function (e) { clearTimeout(timer); throw e; });
   }
-  function fetchFacilities(lat, lng) {
-    var key = facilityKey(lat, lng);
-    if (facilityCache[key]) return facilityCache[key];
+  function loadLocalData() {
+    if (!localData) {
+      localData = fetchWithTimeout(SCRIPT_BASE + LOCAL_DATA_URL, {}, 20000)
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+      localData.catch(function () { localData = null; });
+    }
+    return localData;
+  }
+  function fromLocal(d, lat, lng) {
+    var bb = d.bbox || [];
+    if (!(lng >= bb[0] && lat >= bb[1] && lng <= bb[2] && lat <= bb[3])) return null;
+    // Kotak kasar radius + 5 km agar bidang besar (jarak diukur dari tepi) tetap mendapat kandidat.
+    var dLat = (FACILITY_RADIUS + 5000) / 110574, dLng = dLat / Math.max(0.2, Math.cos(lat * RAD)), out = [];
+    (d.items || []).forEach(function (it) {
+      if (Math.abs(it[1] - lat) > dLat || Math.abs(it[0] - lng) > dLng) return;
+      out.push({ group: d.groups[it[2]], type: d.types[it[3]], name: it[4], lat: it[1], lng: it[0] });
+    });
+    out.source = 'overture';
+    return out;
+  }
+  function fetchOverpass(lat, lng) {
     var body = 'data=' + encodeURIComponent(overpassQuery(lat, lng)), i = 0;
     function attempt() {
       return fetchWithTimeout(OVERPASS[i], { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body }, 20000)
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .catch(function (e) { if (++i < OVERPASS.length) return attempt(); throw e; });
     }
-    var promise = attempt().then(function (json) {
+    return attempt().then(function (json) {
       var seen = Object.create(null);
-      return (json.elements || []).map(function (el) {
+      var list = (json.elements || []).map(function (el) {
         var t = el.tags || {}, c = classify(t), la = el.lat != null ? el.lat : el.center && el.center.lat, lo = el.lon != null ? el.lon : el.center && el.center.lon;
         if (!c || la == null || lo == null || !t.name) return null;
         var id = c[0] + '|' + t.name.toLowerCase(); if (seen[id]) return null; seen[id] = 1;
         return { group: c[0], type: c[1], name: t.name, lat: la, lng: lo };
       }).filter(Boolean);
+      list.source = 'osm';
+      return list;
     });
+  }
+  function fetchFacilities(lat, lng) {
+    var key = facilityKey(lat, lng);
+    if (facilityCache[key]) return facilityCache[key];
+    var promise = loadLocalData().then(function (d) { return fromLocal(d, lat, lng); }, function () { return null; })
+      .then(function (list) { return list || fetchOverpass(lat, lng); });
     facilityCache[key] = promise;
     promise.then(function (list) { promise.value = list; }, function () { delete facilityCache[key]; });
     return promise;
   }
-  function facilitiesTable(list, lat, lng) {
-    var rows = GROUPS.map(function (g) {
-      var items = list.filter(function (f) { return f.group === g.id; }).map(function (f) { return { f: f, d: inverse(lat, lng, f.lat, f.lng).dist }; })
-        .sort(function (a, b) { return a.d - b.d; }).slice(0, 2);
+
+  // Jarak (m) dari titik fasilitas ke bidang: 0 bila di dalam, selain itu ke sisi terdekat. Proyeksi lokal cukup untuk radius beberapa km.
+  function ringsOf(geometry) {
+    return collectPolygons(geometry).map(function (poly) { return poly.map(openRing).filter(function (r) { return r.length >= 3; }); }).filter(function (p) { return p.length; });
+  }
+  function distanceToRings(rings, lat, lng) {
+    var ky = 110574, kx = 111320 * Math.cos(lat * RAD), best = Infinity;
+    for (var p = 0; p < rings.length; p++) {
+      var xy = rings[p].map(function (r) { return r.map(function (c) { return [(c[0] - lng) * kx, (c[1] - lat) * ky]; }); });
+      if (inPart([0, 0], xy)) return 0;
+      xy.forEach(function (ring) {
+        for (var i = 0, n = ring.length; i < n; i++) {
+          var a = ring[i], b = ring[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], len = dx * dx + dy * dy;
+          var t = len ? Math.max(0, Math.min(1, -(a[0] * dx + a[1] * dy) / len)) : 0, x = a[0] + t * dx, y = a[1] + t * dy;
+          best = Math.min(best, Math.sqrt(x * x + y * y));
+        }
+      });
+    }
+    return best;
+  }
+  // list: hasil fetchFacilities; ref: { lat, lng, rings? } -> [{ group, label, items:[{ f, d }] }]
+  function nearestFacilities(list, ref, perGroup) {
+    return GROUPS.map(function (g) {
+      var items = list.filter(function (f) { return f.group === g.id; }).map(function (f) {
+        return { f: f, d: ref.rings && ref.rings.length ? distanceToRings(ref.rings, f.lat, f.lng) : inverse(ref.lat, ref.lng, f.lat, f.lng).dist };
+      }).filter(function (it) { return it.d <= FACILITY_RADIUS; }).sort(function (a, b) { return a.d - b.d; }).slice(0, perGroup || 2);
+      return { id: g.id, label: g.label, items: items };
+    });
+  }
+  function facilitiesTable(list, lat, lng, rings) {
+    var edge = rings && rings.length;
+    var rows = nearestFacilities(list, { lat: lat, lng: lng, rings: rings }, 2).map(function (g) {
+      var items = g.items;
       if (!items.length) return '<tr><td class="l"><b>' + esc(g.label) + '</b></td><td colspan="2" class="mut">Tidak ditemukan dalam radius ' + (FACILITY_RADIUS / 1000) + ' km</td></tr>';
       return items.map(function (it, i) {
-        return '<tr>' + (i ? '' : '<td class="l" rowspan="' + items.length + '"><b>' + esc(g.label) + '</b></td>') + '<td>' + esc(it.f.name) + '<small>' + esc(it.f.type) + '</small></td><td class="r">' + fmtDistance(it.d) + '</td></tr>';
+        return '<tr>' + (i ? '' : '<td class="l" rowspan="' + items.length + '"><b>' + esc(g.label) + '</b></td>') + '<td>' + esc(it.f.name) + '<small>' + esc(it.f.type) + '</small></td><td class="r">' + (it.d < 1 ? 'di dalam bidang' : fmtDistance(it.d)) + '</td></tr>';
       }).join('');
     }).join('');
     return '<table class="rt br-fac-table"><colgroup><col style="width:22%"><col><col style="width:14%"></colgroup><thead><tr><th>Kategori</th><th>Nama · jenis</th><th class="r">Jarak</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-      '<p class="br-src">Sumber: © kontributor OpenStreetMap (ODbL), diambil saat laporan dibuat. Jarak garis lurus dari titik acuan laporan; kelengkapan data bergantung pada pemetaan OSM setempat.</p>';
+      '<p class="br-src">Tempat terdekat dalam radius ' + (FACILITY_RADIUS / 1000) + ' km, jarak garis lurus dari ' + (edge ? 'tepi bidang' : 'titik acuan') + '. ' + (SOURCE_TEXT[list.source] || SOURCE_TEXT.osm) + '; bisa belum lengkap atau sudah berubah.</p>';
   }
-  function facilitiesFailed() { return '<p class="br-src">Data fasilitas tidak dapat diambil saat laporan dibuat (perlu koneksi internet ke layanan OpenStreetMap). Buat ulang laporan untuk mencoba lagi.</p>'; }
+  function facilitiesFailed() { return '<p class="br-src">Data fasilitas tidak dapat dimuat saat laporan dibuat. Buat ulang laporan untuk mencoba lagi.</p>'; }
 
   // Dipanggil di aplikasi saat pengaturan cetak dibuka, supaya data sudah siap ketika laporan dibuat.
   function prefetch(lat, lng) { if (isFinite(lat) && isFinite(lng)) fetchFacilities(lat, lng).catch(function () {}); }
@@ -431,8 +495,11 @@
     html.push('<div class="br-row"><div class="br-kv"><table>' + kv.map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table></div>' + qrBox + '</div>');
     if (data) html.push('<h2 class="sec">Titik Batas Bidang</h2>' + pointsTable(data));
     if (center) {
-      var cached = facilityCache[key], ready = cached && cached.value;
-      html.push('<h2 class="sec">Fasilitas Terdekat</h2><div class="br-fac"' + (ready ? '' : ' data-pending="1" data-lat="' + center.lat + '" data-lng="' + center.lng + '"') + '>' + (ready ? facilitiesTable(cached.value, center.lat, center.lng) : '<p class="br-src">Mengambil data fasilitas dari OpenStreetMap…</p>') + '</div>');
+      var cached = facilityCache[key], ready = cached && cached.value, rings = opts.pointShape ? null : ringsOf(opts.geometry);
+      var ringPts = (rings || []).reduce(function (n, p) { return n + p.reduce(function (m, r) { return m + r.length; }, 0); }, 0);
+      if (ringPts > 4000) rings = null; // bidang sangat rinci: ukur dari titik acuan agar laporan tetap ringan
+      var ringAttr = rings && !ready ? ' data-rings="' + esc(JSON.stringify(rings.map(function (p) { return p.map(function (r) { return r.map(function (c) { return [+c[0].toFixed(7), +c[1].toFixed(7)]; }); }); }))) + '"' : '';
+      html.push('<h2 class="sec">Fasilitas Terdekat</h2><div class="br-fac"' + (ready ? '' : ' data-pending="1" data-lat="' + center.lat + '" data-lng="' + center.lng + '"' + ringAttr) + '>' + (ready ? facilitiesTable(cached.value, center.lat, center.lng, rings) : '<p class="br-src">Memuat data fasilitas…</p>') + '</div>');
     }
     html.push('<div class="br-note"><b>Catatan:</b> Sketsa dan titik batas dihitung dari geometri yang diunggah/digambar di Bale Ruang NTB, bukan dari gambar ukur atau sertifikat resmi. Untuk kepastian batas, rujuk dokumen ATR/BPN.</div></section>');
     return { html: html.join(''), css: CSS, link: link, perimeter: data ? data.perimeter : 0 };
@@ -443,16 +510,17 @@
     var boxes = [].slice.call(document.querySelectorAll('.br-fac[data-pending]'));
     if (!boxes.length) return Promise.resolve();
     return Promise.all(boxes.map(function (box) {
-      var lat = Number(box.getAttribute('data-lat')), lng = Number(box.getAttribute('data-lng'));
+      var lat = Number(box.getAttribute('data-lat')), lng = Number(box.getAttribute('data-lng')), rings = null;
+      try { rings = JSON.parse(box.getAttribute('data-rings') || 'null'); } catch (e) {}
       var timeout = new Promise(function (resolve, reject) { setTimeout(function () { reject(new Error('timeout')); }, 15000); });
-      return Promise.race([fetchFacilities(lat, lng), timeout]).then(function (list) { box.innerHTML = facilitiesTable(list, lat, lng); }, function () { box.innerHTML = facilitiesFailed(); })
+      return Promise.race([fetchFacilities(lat, lng), timeout]).then(function (list) { box.innerHTML = facilitiesTable(list, lat, lng, rings); }, function () { box.innerHTML = facilitiesFailed(); })
         .then(function () { box.removeAttribute('data-pending'); });
     }));
   }
 
   root.BidangReport = {
     parcel: parcel, perimeter: perimeter, sketchSvg: sketchSvg, linkFor: linkFor, readHash: readHash, qrSvg: qrSvg,
-    encodePolygons: encodePolygons, decodePolygons: decodePolygons, fetchFacilities: fetchFacilities, prefetch: prefetch,
+    encodePolygons: encodePolygons, decodePolygons: decodePolygons, fetchFacilities: fetchFacilities, nearestFacilities: nearestFacilities, ringsOf: ringsOf, facilityRadius: FACILITY_RADIUS, facilitySource: SOURCE_TEXT, prefetch: prefetch,
     reportSection: reportSection, runReport: runReport, inverse: inverse, toUtm: toUtm
   };
 })(window);
