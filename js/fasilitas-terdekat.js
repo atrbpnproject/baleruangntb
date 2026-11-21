@@ -16,7 +16,10 @@
     { id: 'gov', label: 'Pemerintahan', icon: 'fa-university', color: '#7c3aed' }
   ];
   var PER_GROUP = 3, RADIUS = BidangReport.facilityRadius || 3000;
-  var state = { picking: false, token: 0, layer: L.layerGroup(), markers: {}, panel: null, lastPickAt: 0, point: null };
+  var HIDE_KEY = 'baleRuangFasilitasSembunyikanSkorRendah';
+  function loadHide() { try { return localStorage.getItem(HIDE_KEY) === '1'; } catch (e) { return false; } }
+  function saveHide(v) { try { localStorage.setItem(HIDE_KEY, v ? '1' : '0'); } catch (e) {} }
+  var state = { hideLow: loadHide(), list: null, picking: false, token: 0, layer: L.layerGroup(), markers: {}, panel: null, lastPickAt: 0, point: null };
 
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function toast(text, ms) { if (typeof window.toast === 'function') window.toast(text, ms); }
@@ -39,6 +42,9 @@
     '.fac-item:hover,.fac-item:focus-visible{background:#eaf4fb;outline:0}' +
     '.fac-item span{flex:1;min-width:0}.fac-item small{color:#6b8295}.fac-item b{flex:none;font-variant-numeric:tabular-nums}' +
     '.fac-empty{margin:0;color:#7a8e9d;font-size:11px}' +
+    '.fac-conf{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px;flex:none}.fac-conf.tinggi{background:#16a34a}.fac-conf.sedang{background:#eab308}.fac-conf.rendah{background:#9ca3af}' +
+    '.fac-item.low span{color:#6b8295}.fac-item em{font-style:normal;color:#9a6b00;font-size:10.5px}' +
+    '.fac-opts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid #e3edf5;font-size:10.5px;color:#5a7183}.fac-opts label{display:flex;align-items:center;gap:5px;cursor:pointer;color:#173d5b;font-weight:700}.fac-opts .lg{display:flex;align-items:center;gap:8px;margin-left:auto}.fac-opts .lg span{display:flex;align-items:center}' +
     '.fac-foot{display:flex;gap:8px;align-items:center;padding:9px 14px 12px;border-top:1px solid #e3edf5}' +
     '.fac-foot p{flex:1;margin:0;color:#6b8295;font-size:10px}' +
     '.fac-foot button{flex:none;padding:7px 10px;border:0;border-radius:8px;background:#0874bd;color:#fff;font:700 11px Arial,sans-serif;cursor:pointer}' +
@@ -53,12 +59,16 @@
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', 'Fasilitas terdekat');
     el.innerHTML = '<div class="fac-head"><div><h3>Fasilitas Terdekat</h3><p data-fac-coord></p></div><button type="button" data-fac-close title="Tutup" aria-label="Tutup"><i class="fas fa-times"></i></button></div>' +
+      '<div class="fac-opts" data-fac-opts><label><input type="checkbox" data-fac-hide> Sembunyikan skor rendah</label><span class="lg" title="Skor keyakinan Overture Maps: seberapa yakin sumber data bahwa tempat ini ada dan benar"><span><i class="fac-conf tinggi"></i>tinggi</span><span><i class="fac-conf sedang"></i>sedang</span><span><i class="fac-conf rendah"></i>rendah</span></span></div>' +
       '<div class="fac-body" data-fac-body></div>' +
       '<div class="fac-foot"><p data-fac-src>Jarak garis lurus dari titik yang diklik, radius ' + (RADIUS / 1000) + ' km.</p><button type="button" data-fac-again><i class="fas fa-crosshairs"></i> Titik lain</button></div>';
     L.DomEvent.disableClickPropagation(el);
     L.DomEvent.disableScrollPropagation(el);
     el.querySelector('[data-fac-close]').addEventListener('click', clear);
     el.querySelector('[data-fac-again]').addEventListener('click', start);
+    var hide = el.querySelector('[data-fac-hide]');
+    hide.checked = state.hideLow;
+    hide.addEventListener('change', function () { state.hideLow = hide.checked; saveHide(state.hideLow); if (state.list && state.point) render(state.list, state.point.lat, state.point.lng, true); });
     el.addEventListener('click', function (e) {
       var item = e.target.closest('[data-fac-id]');
       if (!item) return;
@@ -95,22 +105,26 @@
     return L.divIcon({ className: 'fac-pin-wrap', html: '<div class="fac-pin" style="background:' + g.color + '"><i class="fas ' + g.icon + '"></i></div>', iconSize: [24, 24], iconAnchor: [12, 12] });
   }
 
-  function render(list, lat, lng) {
+  function render(list, lat, lng, keepView) {
+    state.list = list;
+    panel().querySelector('[data-fac-opts]').style.display = list.source === 'overture' ? '' : 'none';
     var body = panel().querySelector('[data-fac-body]'), html = [], bounds = [[lat, lng]];
     state.layer.clearLayers();
     state.markers = {};
     L.circle([lat, lng], { radius: RADIUS, color: '#0874bd', weight: 1, dashArray: '4 6', fill: false, interactive: false }).addTo(state.layer);
     L.circleMarker([lat, lng], { radius: 7, color: '#fff', weight: 2, fillColor: '#0b2a45', fillOpacity: 1 }).bindTooltip('Titik acuan').addTo(state.layer);
-    var nearest = BidangReport.nearestFacilities(list, { lat: lat, lng: lng }, PER_GROUP);
+    var nearest = BidangReport.nearestFacilities(list, { lat: lat, lng: lng, minConfidence: state.hideLow ? BidangReport.lowConfidence : 0 }, PER_GROUP);
     GROUPS.forEach(function (g) {
       var items = (nearest.filter(function (n) { return n.id === g.id; })[0] || { items: [] }).items;
       html.push('<div class="fac-group"><h4><i class="fas ' + g.icon + '" style="background:' + g.color + '"></i>' + esc(g.label) + '</h4>');
-      if (!items.length) html.push('<p class="fac-empty">Tidak ditemukan dalam radius ' + (RADIUS / 1000) + ' km.</p>');
+      if (!items.length) html.push('<p class="fac-empty">Tidak ditemukan dalam radius ' + (RADIUS / 1000) + ' km' + (state.hideLow && list.source === 'overture' ? ' (yang skornya rendah sedang disembunyikan)' : '') + '.</p>');
       items.forEach(function (it, i) {
         var id = g.id + i;
-        html.push('<button type="button" class="fac-item" data-fac-id="' + id + '"><span>' + esc(it.f.name) + ' <small>· ' + esc(it.f.type) + '</small></span><b>' + fmtDistance(it.d) + '</b></button>');
+        var lvl = BidangReport.confidenceLevel(it.f.conf), tip = lvl ? 'Skor keyakinan Overture ' + it.f.conf.toLocaleString('id-ID', { minimumFractionDigits: 2 }) + ' (' + lvl + ')' : '';
+        html.push('<button type="button" class="fac-item' + (lvl === 'rendah' ? ' low' : '') + '" data-fac-id="' + id + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '><span>' + (lvl ? '<i class="fac-conf ' + lvl + '"></i>' : '') + esc(it.f.name) + ' <small>· ' + esc(it.f.type) + '</small>' + (lvl === 'rendah' ? ' <em>perlu dicek</em>' : '') + '</span><b>' + fmtDistance(it.d) + '</b></button>');
         var m = L.marker([it.f.lat, it.f.lng], { icon: pinIcon(g), keyboard: false })
-          .bindTooltip('<b>' + esc(it.f.name) + '</b><br>' + esc(it.f.type) + ' · ' + fmtDistance(it.d), { direction: 'top', offset: [0, -10] });
+          .bindTooltip('<b>' + esc(it.f.name) + '</b><br>' + esc(it.f.type) + ' · ' + fmtDistance(it.d) + (tip ? '<br>' + esc(tip) : ''), { direction: 'top', offset: [0, -10] });
+        if (lvl === 'rendah') m.setOpacity(.6);
         m.addTo(state.layer);
         state.markers[id] = m;
         if (i === 0) bounds.push([it.f.lat, it.f.lng]);
@@ -120,7 +134,7 @@
     body.innerHTML = html.join('');
     var src = (BidangReport.facilitySource || {})[list.source] || '';
     panel().querySelector('[data-fac-src]').textContent = 'Jarak garis lurus dari titik yang diklik, radius ' + (RADIUS / 1000) + ' km. ' + src.replace(/^Sumber: /, 'Sumber: ') + (src ? '; bisa belum lengkap.' : '');
-    if (bounds.length > 1) {
+    if (bounds.length > 1 && !keepView) {
       var mobile = window.matchMedia && window.matchMedia('(max-width:760px)').matches, mapBox = map.getContainer().getBoundingClientRect(), pr = panel().getBoundingClientRect();
       var left = 40, layerPanel = document.getElementById('layerPanel');
       if (!mobile && layerPanel) { var lp = layerPanel.getBoundingClientRect(); if (lp.width && lp.right > mapBox.left) left = Math.max(left, lp.right - mapBox.left + 30); }

@@ -11,7 +11,7 @@ Kategori yang disimpan: pendidikan, kesehatan, ibadah, belanja & pasar, pemerint
 import json, re, sys, datetime
 
 BBOX = (115.7, -9.25, 119.5, -7.9)  # xmin, ymin, xmax, ymax (NTB + laut sekitar)
-MIN_CONFIDENCE = 0.4
+MIN_CONFIDENCE = 0  # tidak disaring; skor disimpan dan ditampilkan agar pengguna yang menilai
 GROUPS = ['edu', 'health', 'worship', 'market', 'gov']
 TYPES = []
 
@@ -25,15 +25,45 @@ def tid(label):
 def classify(hier, name):
     h = hier or ''
     n = name or ''
+    # Nama yang jelas menunjukkan jenis fasilitas lebih andal daripada kategori Overture (yang kadang kosong/keliru).
+    if re.match(r'^pasar\b', n, re.I):
+        return 'market', 'Pasar'
+    if re.match(r'^(masjid|mesjid|mush?oll?a|musala|langgar|surau)\b', n, re.I):
+        return 'worship', 'Masjid / musala'
+    if re.match(r'^pura\b', n, re.I) and not h.startswith(('accommodation', 'lodging', 'food_and_drink')):
+        return 'worship', 'Pura'
+    if re.match(r'^(gereja|GKI|GPIB|GBI|HKBP)\b', n, re.I):
+        return 'worship', 'Gereja'
+    if re.match(r'^(vihara|wihara|klenteng)\b', n, re.I):
+        return 'worship', 'Vihara'
+    if re.search(r'\b(puskesmas|pustu|polindes|poskesdes)\b', n, re.I):
+        return 'health', 'Puskesmas/pustu'
+    if (not h or h.startswith('health_care')) and re.match(r'^(rumah sakit|RSU?D?|RSIA|RS)\b', n, re.I):
+        return 'health', 'Rumah sakit'
+    if re.match(r'^kantor (kepala )?(desa|lurah|kelurahan)\b', n, re.I):
+        return 'gov', 'Kantor desa/kelurahan'
+    if re.match(r'^kantor (camat|kecamatan)\b', n, re.I):
+        return 'gov', 'Kantor camat'
+    if not h or h.startswith('education'):
+        if re.match(r'^(TK|PAUD|RA|KB)\s', n):
+            return 'edu', 'TK/PAUD'
+        if re.match(r'^(SMPN?|MTSN?|MTs|Madrasah Tsanawiyah)\b', n, re.I):
+            return 'edu', 'SMP/MTs'
+        if re.match(r'^(SMAN?|SMKN?|MAN?|MAS|Madrasah Aliyah)\b', n, re.I):
+            return 'edu', 'SMA/SMK/MA'
+        if re.match(r'^(SDN?|MIN?|MIS|UPT\s*SD|Sekolah Dasar|Madrasah Ibtidaiyah)\b', n, re.I):
+            return 'edu', 'SD/MI'
+        if re.match(r'^(pondok pesantren|ponpes|pesantren)\b', n, re.I):
+            return 'edu', 'Madrasah/pesantren'
     if h.startswith('education>place_of_learning'):
         # Nama lebih andal daripada kategori Overture untuk jenjang sekolah di Indonesia.
         if re.match(r'^(TK|PAUD|RA|KB)\b', n, re.I):
             return 'edu', 'TK/PAUD'
         if re.match(r'^(SMPN?|MTSN?|MTs|Madrasah Tsanawiyah)\b', n, re.I):
             return 'edu', 'SMP/MTs'
-        if re.match(r'^(SMAN?|SMKN?|MAN?|Madrasah Aliyah)\b', n, re.I):
+        if re.match(r'^(SMAN?|SMKN?|MAN?|MAS|Madrasah Aliyah)\b', n, re.I):
             return 'edu', 'SMA/SMK/MA'
-        if re.match(r'^(SDN?|MIN?|UPT\s*SD|SD\s|Sekolah Dasar|Madrasah Ibtidaiyah)\b', n, re.I):
+        if re.match(r'^(SDN?|MIN?|MIS|UPT\s*SD|SD\s|Sekolah Dasar|Madrasah Ibtidaiyah)\b', n, re.I):
             return 'edu', 'SD/MI'
         if re.search(r'pondok|pesantren|ponpes', n, re.I):
             return 'edu', 'Madrasah/pesantren'
@@ -80,7 +110,7 @@ def classify(hier, name):
     if h.startswith('shopping>convenience_store'):
         return 'market', 'Minimarket'
     if h.startswith('shopping>food_and_beverage_store>grocery_store') or h.startswith('shopping>supermarket') or h.startswith('shopping>department_store') or h.startswith('shopping>warehouse_club_store'):
-        return 'market', 'Swalayan/toko bahan pokok'
+        return 'market', 'Toko kelontong/swalayan'
     if h.startswith('shopping>shopping_mall'):
         return 'market', 'Pusat perbelanjaan'
     if h.startswith('community_and_government>government_office') or h.startswith('community_and_government>public_safety_service>police_station'):
@@ -141,11 +171,11 @@ def main():
         if key in seen:
             continue
         seen.add(key)
-        items.append([round(r['x'], 5), round(r['y'], 5), GROUPS.index(c[0]), tid(c[1]), r['name'].strip()])
+        items.append([round(r['x'], 5), round(r['y'], 5), GROUPS.index(c[0]), tid(c[1]), r['name'].strip(), round(r.get('conf') or 0, 2)])
     items.sort(key=lambda i: (i[1], i[0]))
     out = {'source': 'Overture Maps Foundation, Places (CDLA-Permissive-2.0 / ODbL sesuai sumber)', 'release': release,
            'built': datetime.date.today().isoformat(), 'bbox': BBOX, 'groups': GROUPS, 'types': TYPES,
-           'fields': ['lng', 'lat', 'group', 'type', 'name'], 'items': items}
+           'fields': ['lng', 'lat', 'group', 'type', 'name', 'confidence'], 'items': items}
     with open('data/fasilitas/ntb-overture.json', 'w', encoding='utf-8') as fh:
         json.dump(out, fh, ensure_ascii=False, separators=(',', ':'))
     from collections import Counter

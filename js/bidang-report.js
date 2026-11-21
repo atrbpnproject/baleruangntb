@@ -302,7 +302,7 @@
     { id: 'market', label: 'Belanja & pasar' }, { id: 'gov', label: 'Pemerintahan' }
   ];
   var SCRIPT_BASE = (function () { try { var src = document.currentScript && document.currentScript.src; return src ? new URL('../', src).href : ''; } catch (e) { return ''; } })();
-  var LOCAL_DATA_URL = 'data/fasilitas/ntb-overture.json?v=2026-11-18.0';
+  var LOCAL_DATA_URL = 'data/fasilitas/ntb-overture.json?v=2026-11-18.0c';
   var SOURCE_TEXT = {
     overture: 'Sumber: Overture Maps Foundation (Places), disimpan di Bale Ruang NTB',
     osm: 'Sumber: © kontributor OpenStreetMap (ODbL), diambil saat dibuka'
@@ -355,7 +355,7 @@
     var dLat = (FACILITY_RADIUS + 5000) / 110574, dLng = dLat / Math.max(0.2, Math.cos(lat * RAD)), out = [];
     (d.items || []).forEach(function (it) {
       if (Math.abs(it[1] - lat) > dLat || Math.abs(it[0] - lng) > dLng) return;
-      out.push({ group: d.groups[it[2]], type: d.types[it[3]], name: it[4], lat: it[1], lng: it[0] });
+      out.push({ group: d.groups[it[2]], type: d.types[it[3]], name: it[4], lat: it[1], lng: it[0], conf: it[5] != null ? it[5] : null });
     });
     out.source = 'overture';
     return out;
@@ -408,12 +408,17 @@
     }
     return best;
   }
-  // list: hasil fetchFacilities; ref: { lat, lng, rings? } -> [{ group, label, items:[{ f, d }] }]
+  // Skor keyakinan Overture (0-1). Di bawah LOW_CONFIDENCE ditandai "perlu dicek"; OSM tidak punya skor (null).
+  var LOW_CONFIDENCE = 0.4, HIGH_CONFIDENCE = 0.7;
+  function confidenceLevel(c) { return c == null ? null : c >= HIGH_CONFIDENCE ? 'tinggi' : c >= LOW_CONFIDENCE ? 'sedang' : 'rendah'; }
+  // list: hasil fetchFacilities; ref: { lat, lng, rings?, minConfidence? } -> [{ group, label, items:[{ f, d }] }]
   function nearestFacilities(list, ref, perGroup) {
     return GROUPS.map(function (g) {
-      var items = list.filter(function (f) { return f.group === g.id; }).map(function (f) {
+      var items = list.filter(function (f) { return f.group === g.id && !(ref.minConfidence && f.conf != null && f.conf < ref.minConfidence); }).map(function (f) {
         return { f: f, d: ref.rings && ref.rings.length ? distanceToRings(ref.rings, f.lat, f.lng) : inverse(ref.lat, ref.lng, f.lat, f.lng).dist };
-      }).filter(function (it) { return it.d <= FACILITY_RADIUS; }).sort(function (a, b) { return a.d - b.d; }).slice(0, perGroup || 2);
+      }).filter(function (it) { return it.d <= FACILITY_RADIUS; }).sort(function (a, b) { return a.d - b.d; });
+      var seen = Object.create(null); // nama sama (titik ganda di sumber data) cukup ditampilkan sekali, yang terdekat
+      items = items.filter(function (it) { var k = it.f.name.toLowerCase().replace(/\s+/g, ' ').trim(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, perGroup || 2);
       return { id: g.id, label: g.label, items: items };
     });
   }
@@ -423,11 +428,11 @@
       var items = g.items;
       if (!items.length) return '<tr><td class="l"><b>' + esc(g.label) + '</b></td><td colspan="2" class="mut">Tidak ditemukan dalam radius ' + (FACILITY_RADIUS / 1000) + ' km</td></tr>';
       return items.map(function (it, i) {
-        return '<tr>' + (i ? '' : '<td class="l" rowspan="' + items.length + '"><b>' + esc(g.label) + '</b></td>') + '<td>' + esc(it.f.name) + '<small>' + esc(it.f.type) + '</small></td><td class="r">' + (it.d < 1 ? 'di dalam bidang' : fmtDistance(it.d)) + '</td></tr>';
+        return '<tr>' + (i ? '' : '<td class="l" rowspan="' + items.length + '"><b>' + esc(g.label) + '</b></td>') + '<td>' + esc(it.f.name) + '<small>' + esc(it.f.type) + (confidenceLevel(it.f.conf) === 'rendah' ? ' · skor rendah (' + num(it.f.conf, 2) + '), perlu dicek' : '') + '</small></td><td class="r">' + (it.d < 1 ? 'di dalam bidang' : fmtDistance(it.d)) + '</td></tr>';
       }).join('');
     }).join('');
     return '<table class="rt br-fac-table"><colgroup><col style="width:22%"><col><col style="width:14%"></colgroup><thead><tr><th>Kategori</th><th>Nama · jenis</th><th class="r">Jarak</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-      '<p class="br-src">Tempat terdekat dalam radius ' + (FACILITY_RADIUS / 1000) + ' km, jarak garis lurus dari ' + (edge ? 'tepi bidang' : 'titik acuan') + '. ' + (SOURCE_TEXT[list.source] || SOURCE_TEXT.osm) + '; bisa belum lengkap atau sudah berubah.</p>';
+      '<p class="br-src">Tempat terdekat dalam radius ' + (FACILITY_RADIUS / 1000) + ' km, jarak garis lurus dari ' + (edge ? 'tepi bidang' : 'titik acuan') + '. ' + (SOURCE_TEXT[list.source] || SOURCE_TEXT.osm) + '; bisa belum lengkap atau sudah berubah.' + (list.source === 'overture' ? ' "Skor rendah" = skor keyakinan Overture di bawah ' + num(LOW_CONFIDENCE, 1) + '.' : '') + '</p>';
   }
   function facilitiesFailed() { return '<p class="br-src">Data fasilitas tidak dapat dimuat saat laporan dibuat. Buat ulang laporan untuk mencoba lagi.</p>'; }
 
@@ -520,7 +525,7 @@
 
   root.BidangReport = {
     parcel: parcel, perimeter: perimeter, sketchSvg: sketchSvg, linkFor: linkFor, readHash: readHash, qrSvg: qrSvg,
-    encodePolygons: encodePolygons, decodePolygons: decodePolygons, fetchFacilities: fetchFacilities, nearestFacilities: nearestFacilities, ringsOf: ringsOf, facilityRadius: FACILITY_RADIUS, facilitySource: SOURCE_TEXT, prefetch: prefetch,
+    encodePolygons: encodePolygons, decodePolygons: decodePolygons, fetchFacilities: fetchFacilities, nearestFacilities: nearestFacilities, confidenceLevel: confidenceLevel, lowConfidence: LOW_CONFIDENCE, ringsOf: ringsOf, facilityRadius: FACILITY_RADIUS, facilitySource: SOURCE_TEXT, prefetch: prefetch,
     reportSection: reportSection, runReport: runReport, inverse: inverse, toUtm: toUtm
   };
 })(window);
