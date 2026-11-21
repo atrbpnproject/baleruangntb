@@ -302,7 +302,7 @@
     { id: 'market', label: 'Belanja & pasar' }, { id: 'gov', label: 'Pemerintahan' }
   ];
   var SCRIPT_BASE = (function () { try { var src = document.currentScript && document.currentScript.src; return src ? new URL('../', src).href : ''; } catch (e) { return ''; } })();
-  var LOCAL_DATA_URL = 'data/fasilitas/ntb-overture.json?v=2026-11-18.0';
+  var LOCAL_DATA_URL = 'data/fasilitas/ntb-overture.json?v=2026-11-18.0b';
   var SOURCE_TEXT = {
     overture: 'Sumber: Overture Maps Foundation (Places), disimpan di Bale Ruang NTB',
     osm: 'Sumber: © kontributor OpenStreetMap (ODbL), diambil saat dibuka'
@@ -413,7 +413,9 @@
     return GROUPS.map(function (g) {
       var items = list.filter(function (f) { return f.group === g.id; }).map(function (f) {
         return { f: f, d: ref.rings && ref.rings.length ? distanceToRings(ref.rings, f.lat, f.lng) : inverse(ref.lat, ref.lng, f.lat, f.lng).dist };
-      }).filter(function (it) { return it.d <= FACILITY_RADIUS; }).sort(function (a, b) { return a.d - b.d; }).slice(0, perGroup || 2);
+      }).filter(function (it) { return it.d <= FACILITY_RADIUS; }).sort(function (a, b) { return a.d - b.d; });
+      var seen = Object.create(null); // nama sama (titik ganda di sumber data) cukup ditampilkan sekali, yang terdekat
+      items = items.filter(function (it) { var k = it.f.name.toLowerCase().replace(/\s+/g, ' ').trim(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, perGroup || 2);
       return { id: g.id, label: g.label, items: items };
     });
   }
