@@ -11,7 +11,7 @@ Kategori yang disimpan: pendidikan, kesehatan, ibadah, belanja & pasar, pemerint
 import json, re, sys, datetime
 
 BBOX = (115.7, -9.25, 119.5, -7.9)  # xmin, ymin, xmax, ymax (NTB + laut sekitar)
-MIN_CONFIDENCE = 0.2  # banyak sekolah/kantor desa di NTB punya skor rendah (mis. SDN 1 Giri Tembesi 0,39)
+MIN_CONFIDENCE = 0  # tidak disaring; skor disimpan dan ditampilkan agar pengguna yang menilai
 GROUPS = ['edu', 'health', 'worship', 'market', 'gov']
 TYPES = []
 
@@ -171,11 +171,11 @@ def main():
         if key in seen:
             continue
         seen.add(key)
-        items.append([round(r['x'], 5), round(r['y'], 5), GROUPS.index(c[0]), tid(c[1]), r['name'].strip()])
+        items.append([round(r['x'], 5), round(r['y'], 5), GROUPS.index(c[0]), tid(c[1]), r['name'].strip(), round(r.get('conf') or 0, 2)])
     items.sort(key=lambda i: (i[1], i[0]))
     out = {'source': 'Overture Maps Foundation, Places (CDLA-Permissive-2.0 / ODbL sesuai sumber)', 'release': release,
            'built': datetime.date.today().isoformat(), 'bbox': BBOX, 'groups': GROUPS, 'types': TYPES,
-           'fields': ['lng', 'lat', 'group', 'type', 'name'], 'items': items}
+           'fields': ['lng', 'lat', 'group', 'type', 'name', 'confidence'], 'items': items}
     with open('data/fasilitas/ntb-overture.json', 'w', encoding='utf-8') as fh:
         json.dump(out, fh, ensure_ascii=False, separators=(',', ':'))
     from collections import Counter
