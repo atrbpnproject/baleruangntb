@@ -22,6 +22,33 @@ def tid(label):
     return TYPES.index(label)
 
 
+# Kantor pemerintahan dikenali dari nama karena kategori Overture sering keliru
+# (mis. "Kantor BPBD" tercatat jasa acara, "Kelurahan Gerung Utara" jasa profesional).
+NOT_GOV = re.compile(r'\b(advokat|hukum|notaris|law|telkom|pln|pos indonesia|kantor pos|wisata|villa|homestay|hotel|cafe|kafe|warung|resto|toko|lapangan|hotspot|travel|tour|bumdes|koperasi|bank|pinbid|berita|lembaga sosial|gedung serbaguna|pkbm|hmi|partai|dpw|dpd|dpc|phdi|ppni|btn|perumahan|dusun)\b', re.I)
+GOV_RULES = [
+    (r'\bdprd\b|dewan perwakilan rakyat daerah', 'DPRD'),
+    (r'\b(kantor )?gubernur\b|pemerintah provinsi|\bpemprov\b|sekretariat daerah provinsi|setda (prov|ntb)', 'Kantor gubernur/pemprov'),
+    (r'^(kantor |uptd? |upt )?(dinas|badan|bappeda|bapenda|bpbd|bkd|bkad|bpkad|bkpsdm|inspektorat|satpol|dpmptsp|dpmpd|dukcapil|disdukcapil|dikbud|bpn|kantor pertanahan|atr|kementerian|kemenag|kpp|kantor pajak|pajak daerah|bapenda|bps|badan pusat statistik|samsat|imigrasi|kua|kantor urusan agama|pengadilan|kejaksaan|kejari|kejati|ombudsman|bpjs|bkkbn|bpom|bmkg|bnn|kpu|bawaslu|kesbangpol|perpustakaan daerah|dispenda|disnaker|disnakertrans|dishub|dinsos|diskominfo|dispora|disperindag|diskoperindag|disbudpar|dispar|disdik|dispertan|disperkim|dislutkan|disdukcapil|dikpora|biro)\b', 'Instansi pemerintah'),
+    (r'\b(kantor |pendopo |rumah dinas )?(wakil )?(bupati|wali ?kota)\b|pemerintah (kabupaten|kota)\b|\bpem(kab|kot)\b|\bsetda\b|sekretariat daerah|kantor pemda|\bpemda\b', 'Kantor bupati/wali kota'),
+    (r'^(kantor )?(camat|kecamatan)\b', 'Kantor camat'),
+    (r'^(kantor |balai |pemerintah(an)? )?(kepala )?(desa|kelurahan|lurah|kades)\b|^kantor (desa|lurah|kelurahan|kades)\b', 'Kantor desa/kelurahan'),
+    (r'^(kantor )?(polsek|polres|polresta|polda|polisi|kepolisian|koramil|kodim|korem|lanal|lanud|brimob|satbrimob)\b|^pos (polisi|pol)\b', 'Polisi/TNI'),
+]
+def gov_by_name(h, n):
+    if not n or NOT_GOV.search(n):
+        return None
+    for pat, label in GOV_RULES:
+        if re.search(pat, n, re.I):
+            # "Desa X"/"Kecamatan X" saja bisa berarti wilayah, bukan kantornya: terima hanya bila kategorinya pemerintahan/kosong.
+            if label in ('Kantor desa/kelurahan', 'Kantor camat') and not re.match(r'^(kantor|balai|pemerintah)', n, re.I):
+                if h and not h.startswith('community_and_government'):
+                    return None
+                if h.startswith('community_and_government>social_or_community_service>') or 'civic_organization' in h:
+                    return None
+            return label
+    return None
+
+
 def classify(hier, name):
     h = hier or ''
     n = name or ''
@@ -40,10 +67,11 @@ def classify(hier, name):
         return 'health', 'Puskesmas/pustu'
     if (not h or h.startswith('health_care')) and re.match(r'^(rumah sakit|RSU?D?|RSIA|RS)\b', n, re.I):
         return 'health', 'Rumah sakit'
-    if re.match(r'^kantor (kepala )?(desa|lurah|kelurahan)\b', n, re.I):
-        return 'gov', 'Kantor desa/kelurahan'
-    if re.match(r'^kantor (camat|kecamatan)\b', n, re.I):
-        return 'gov', 'Kantor camat'
+    if re.match(r'^(SDN?|SMPN?|SMAN?|SMKN?|MTSN?|MTs|MIN?|MAN?|MAS|TK|PAUD)\s', n) and not h.startswith(('community_and_government>public_safety', 'health')):
+        h = 'education'
+    g = gov_by_name(h, n)
+    if g:
+        return 'gov', g
     if not h or h.startswith('education'):
         if re.match(r'^(TK|PAUD|RA|KB)\s', n):
             return 'edu', 'TK/PAUD'
@@ -115,7 +143,7 @@ def classify(hier, name):
         return 'market', 'Pusat perbelanjaan'
     if h.startswith('community_and_government>government_office') or h.startswith('community_and_government>public_safety_service>police_station'):
         if 'police' in h:
-            return 'gov', 'Kantor polisi'
+            return None  # nama tanpa ciri polisi (dusun, PLN, dll.) salah kategori di sumber
         if re.search(r'\b(desa|kelurahan|kades|lurah)\b', n, re.I):
             return 'gov', 'Kantor desa/kelurahan'
         if re.search(r'\bcamat|kecamatan\b', n, re.I):
