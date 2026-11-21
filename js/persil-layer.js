@@ -292,7 +292,7 @@
       .catch(function () { openPopup(latlng, shell(props, '<p class="persil-empty">Detail tambahan tidak dapat diambil.</p>')); });
   }
 
-  map.on('click', function (e) { if (state.vectorClickAt && Date.now() - state.vectorClickAt < 300) return; identify(e.latlng); });
+  map.on('click', function (e) { if (state.vectorClickAt && Date.now() - state.vectorClickAt < 300) return; if (window.FasilitasTool && FasilitasTool.justPicked()) return; identify(e.latlng); });
   map.on('measurestart', function () { state.measuring = true; });
   map.on('measurefinish', function () { state.measuring = false; });
 
