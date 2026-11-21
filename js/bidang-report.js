@@ -454,6 +454,14 @@
     '.br-pts .grp td{padding:3px 5px!important}' +
     '.br-fac-table td small{display:block;color:#5a7183;font-size:7.3px}.br-fac-table .mut{color:#7a8e9d}' +
     '.br-src{margin:1.5mm 0 0;color:#5a7183;font-size:7.3px;line-height:1.4}' +
+    '.br-pmap{border:1px solid #c5d4df;border-radius:6px;overflow:hidden;display:flex;flex-direction:column}' +
+    '.br-pmap-view{position:relative;height:52mm;overflow:hidden;background:#dfe7ec}' +
+    '.br-pmap-tiles{position:absolute;left:50%;top:50%;width:0;height:0}.br-pmap-tiles img{position:absolute;width:256px;height:256px;max-width:none}' +
+    '.br-pmap-pin{position:absolute;left:50%;top:50%;width:22px;height:30px;margin:-29px 0 0 -11px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}' +
+    '.br-pmap-n{position:absolute;right:6px;top:6px;width:22px;height:26px;border-radius:5px;background:rgba(255,255,255,.92);color:#0b2a45;font:700 8px Arial,sans-serif;text-align:center;line-height:11px;padding-top:2px;box-sizing:border-box}.br-pmap-n i{display:block;margin:1px auto 0;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid #0b2a45}' +
+    '.br-pmap-scale{position:absolute;left:6px;bottom:6px;padding:3px 6px;border-radius:4px;background:rgba(255,255,255,.92);color:#0b2a45;font:700 7.5px Arial,sans-serif;display:flex;align-items:center;gap:5px}.br-pmap-scale i{display:block;height:4px;border:1.5px solid #0b2a45;border-top:0}' +
+    '.br-pmap-attr{position:absolute;right:4px;bottom:3px;color:#fff;font-size:6px;text-shadow:0 0 2px #000}' +
+    '.br-pmap-kv{width:100%;border-collapse:collapse;font-size:8px}.br-pmap-kv th{text-align:left;font-weight:500;color:#5a7183;padding:3px 9px;width:38%;border-top:1px solid #e3ebf1}.br-pmap-kv td{font-weight:700;padding:3px 9px 3px 0;border-top:1px solid #e3ebf1;font-variant-numeric:tabular-nums}' +
     '.br-note{margin-top:3mm;padding:6px 9px;border-left:4px solid #e0a800;background:#fffaf0;color:#5c4300;font-size:8px;line-height:1.45;border-radius:5px}';
 
   function hemi(v, pos, neg, dec) { return Math.abs(v).toFixed(dec) + '° ' + (v < 0 ? neg : pos); }
@@ -477,7 +485,37 @@
       '<p class="br-src">Titik dinomori searah jarum jam mulai dari titik paling barat laut. Panjang sisi dan azimut (dari utara sejati) dihitung pada elipsoid WGS84; X/Y pada UTM zona ' + data.zone + (data.south ? 'S' : 'N') + '. "Menghadap" adalah arah sisi tersebut dilihat dari dalam bidang.</p>';
   }
 
-  /* opts: { geometry, pointShape, center:{lat,lng}, head, ident, areaInfo:{computed, attribute, attributeLabel}, sourceLabel } */
+  /* ---------------- Peta lokasi titik (mosaik ubin statis, tanpa Leaflet) ---------------- */
+  var MINI_ZOOM = 17, MINI_COLS = 5, MINI_ROWS = 3;
+  function dms(v, pos, neg) {
+    var a = Math.abs(v), d = Math.floor(a), mf = (a - d) * 60, m = Math.floor(mf), sec = (mf - m) * 60;
+    if (sec >= 59.95) { sec = 0; m++; } if (m >= 60) { m = 0; d++; }
+    return d + '°' + (m < 10 ? '0' : '') + m + '′' + num(sec, 1).padStart(4, '0') + '″ ' + (v < 0 ? neg : pos);
+  }
+  function tileUrl(tpl, x, y, z) { return tpl.replace('{s}', 'a').replace('{x}', x).replace('{y}', y).replace('{z}', z); }
+  function niceScale(maxM) { var p = Math.pow(10, Math.floor(Math.log(maxM) / Math.LN10)), n = maxM / p; return (n >= 5 ? 5 : n >= 2 ? 2 : 1) * p; }
+  function pointMap(lat, lng, baseUrl) {
+    baseUrl = String(baseUrl).replace('lyrs=s&', 'lyrs=y&'); // citra satelit + label jalan/tempat agar lokasi mudah dikenali
+    var z = MINI_ZOOM, n = Math.pow(2, z), wx = (lng + 180) / 360 * n * 256;
+    var sl = Math.sin(lat * RAD), wy = (0.5 - Math.log((1 + sl) / (1 - sl)) / (4 * Math.PI)) * n * 256;
+    var tx0 = Math.floor(wx / 256) - Math.floor(MINI_COLS / 2), ty0 = Math.floor(wy / 256) - Math.floor(MINI_ROWS / 2), tiles = [];
+    for (var j = 0; j < MINI_ROWS; j++) for (var i = 0; i < MINI_COLS; i++) {
+      var tx = tx0 + i, ty = ty0 + j;
+      tiles.push('<img alt="" src="' + esc(tileUrl(baseUrl, ((tx % n) + n) % n, ty, z)) + '" style="left:' + Math.round(tx * 256 - wx) + 'px;top:' + Math.round(ty * 256 - wy) + 'px">');
+    }
+    var mpp = 156543.03392 * Math.cos(lat * RAD) / n, bar = niceScale(mpp * 90), barPx = Math.round(bar / mpp);
+    var utm = toUtm(lat, lng, utmZone(lng));
+    return '<div class="br-pmap"><div class="br-pmap-view"><div class="br-pmap-tiles">' + tiles.join('') + '</div>' +
+      '<svg class="br-pmap-pin" viewBox="0 0 30 40" aria-hidden="true"><path d="M15 39C15 39 2 23.5 2 14.5a13 13 0 0 1 26 0C28 23.5 15 39 15 39z" fill="#d6262b" stroke="#fff" stroke-width="2.2"/><circle cx="15" cy="14.5" r="5" fill="#fff"/></svg>' +
+      '<span class="br-pmap-n">U<i></i></span>' +
+      '<span class="br-pmap-scale"><i style="width:' + barPx + 'px"></i>' + (bar >= 1000 ? num(bar / 1000, 0) + ' km' : num(bar, 0) + ' m') + '</span>' +
+      '<span class="br-pmap-attr">Citra peta dasar © Google</span></div>' +
+      '<table class="br-pmap-kv"><tr><th>Lintang, bujur (desimal)</th><td>' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</td></tr>' +
+      '<tr><th>Derajat-menit-detik</th><td>' + dms(lat, 'LU', 'LS') + ' · ' + dms(lng, 'BT', 'BB') + '</td></tr>' +
+      '<tr><th>UTM zona ' + utmZone(lng) + (lat < 0 ? 'S' : 'N') + '</th><td>X ' + num(utm[0], 2) + ' m · Y ' + num(utm[1], 2) + ' m</td></tr></table></div>';
+  }
+
+  /* opts: { geometry, pointShape, baseUrl, center:{lat,lng}, head, ident, areaInfo:{computed, attribute, attributeLabel}, sourceLabel } */
   function reportSection(opts) {
     var center = opts.center, link = linkFor(opts.geometry, opts.pointShape ? center : null), qr = link ? qrSvg(link.url) : '';
     var data = opts.pointShape ? null : parcel(opts.geometry), html = [], key = center ? facilityKey(center.lat, center.lng) : '';
@@ -494,10 +532,13 @@
       if (opts.areaInfo && opts.areaInfo.attribute) kv.push(['Luas pada atribut', num(Math.round(opts.areaInfo.attribute), 0) + ' m²' + (opts.areaInfo.computed ? ' (selisih ' + num(Math.abs(opts.areaInfo.attribute - opts.areaInfo.computed), 0) + ' m²)' : '')]);
       if (data.parts.length > 1) kv.push(['Jumlah bagian', num(data.parts.length, 0)]);
     }
-    if (center) kv.push([opts.pointShape ? 'Koordinat titik' : 'Titik acuan', center.lat.toFixed(6) + ', ' + center.lng.toFixed(6)]);
+    if (center && !opts.pointShape) kv.push(['Titik acuan', center.lat.toFixed(6) + ', ' + center.lng.toFixed(6)]);
     if (opts.sourceLabel) kv.push(['Sumber geometri', opts.sourceLabel]);
     var qrBox = link ? '<div class="br-qr">' + qr + '<b>Buka di Bale Ruang NTB</b>' + (link.kind === 'bidang' ? 'Pindai untuk menampilkan bidang ini di peta dan menganalisisnya kembali.' + (link.simplified ? ' Bentuk disederhanakan ±' + num(link.simplified, 2) + ' m agar muat di QR.' : '') : link.fallback ? 'Bidang terlalu rinci untuk QR; kode ini membuka titik acuannya.' : 'Pindai untuk membuka titik ini di peta dan menganalisisnya kembali.') + '<br><a href="' + esc(link.url) + '">' + esc(link.url.length > 70 ? link.url.slice(0, 64) + '…' : link.url) + '</a></div>' : '';
-    html.push('<div class="br-row"><div class="br-kv"><table>' + kv.map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table></div>' + qrBox + '</div>');
+    var leftBox = opts.pointShape && center && opts.baseUrl ? pointMap(center.lat, center.lng, opts.baseUrl)
+      : '<div class="br-kv"><table>' + kv.map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table></div>';
+    if (opts.pointShape && center) html.push('<h2 class="sec">Lokasi Titik</h2>');
+    html.push('<div class="br-row">' + leftBox + qrBox + '</div>');
     if (data) html.push('<h2 class="sec">Titik Batas Bidang</h2>' + pointsTable(data));
     if (center) {
       var cached = facilityCache[key], ready = cached && cached.value, rings = opts.pointShape ? null : ringsOf(opts.geometry);
@@ -506,21 +547,29 @@
       var ringAttr = rings && !ready ? ' data-rings="' + esc(JSON.stringify(rings.map(function (p) { return p.map(function (r) { return r.map(function (c) { return [+c[0].toFixed(7), +c[1].toFixed(7)]; }); }); }))) + '"' : '';
       html.push('<h2 class="sec">Fasilitas Terdekat</h2><div class="br-fac"' + (ready ? '' : ' data-pending="1" data-lat="' + center.lat + '" data-lng="' + center.lng + '"' + ringAttr) + '>' + (ready ? facilitiesTable(cached.value, center.lat, center.lng, rings) : '<p class="br-src">Memuat data fasilitas…</p>') + '</div>');
     }
-    html.push('<div class="br-note"><b>Catatan:</b> Sketsa dan titik batas dihitung dari geometri yang diunggah/digambar di Bale Ruang NTB, bukan dari gambar ukur atau sertifikat resmi. Untuk kepastian batas, rujuk dokumen ATR/BPN.</div></section>');
+    if (data) html.push('<div class="br-note"><b>Catatan:</b> Sketsa dan titik batas dihitung dari geometri yang diunggah/digambar di Bale Ruang NTB, bukan dari gambar ukur atau sertifikat resmi. Untuk kepastian batas, rujuk dokumen ATR/BPN.</div>');
+    html.push('</section>');
     return { html: html.join(''), css: CSS, link: link, perimeter: data ? data.perimeter : 0 };
   }
 
   // Dijalankan di jendela laporan: melengkapi fasilitas yang belum siap, lalu memberi tahu proses cetak.
+  // Tunggu ubin peta lokasi titik termuat (maks. 12 dtk) agar ikut tercetak.
+  function waitTiles() {
+    var imgs = [].slice.call(document.querySelectorAll('.br-pmap-tiles img'));
+    return Promise.race([Promise.all(imgs.map(function (img) {
+      return img.complete ? null : new Promise(function (res) { img.addEventListener('load', res); img.addEventListener('error', function () { img.style.visibility = 'hidden'; res(); }); });
+    })), new Promise(function (res) { setTimeout(res, 12000); })]);
+  }
   function runReport() {
     var boxes = [].slice.call(document.querySelectorAll('.br-fac[data-pending]'));
-    if (!boxes.length) return Promise.resolve();
-    return Promise.all(boxes.map(function (box) {
+    if (!boxes.length) return waitTiles();
+    return Promise.all([waitTiles()].concat(boxes.map(function (box) {
       var lat = Number(box.getAttribute('data-lat')), lng = Number(box.getAttribute('data-lng')), rings = null;
       try { rings = JSON.parse(box.getAttribute('data-rings') || 'null'); } catch (e) {}
       var timeout = new Promise(function (resolve, reject) { setTimeout(function () { reject(new Error('timeout')); }, 15000); });
       return Promise.race([fetchFacilities(lat, lng), timeout]).then(function (list) { box.innerHTML = facilitiesTable(list, lat, lng, rings); }, function () { box.innerHTML = facilitiesFailed(); })
         .then(function () { box.removeAttribute('data-pending'); });
-    }));
+    })));
   }
 
   root.BidangReport = {
